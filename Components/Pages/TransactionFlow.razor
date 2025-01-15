@@ -5,13 +5,22 @@
 @inject ITransactionService transactionService
 @inject AuthenticationStateService authStateService
 @inject NavigationManager navigationManager
-
+@inject IDebtService debtService
 
 @if (authStateService.IsAuthenticated())
 {
     <div class="container mt-4">
         <h3>Add Transaction (Inflow/Outflow)</h3>
+
+        @if (showCurrentBalance)
+        {
+            <div class="alert alert-info">
+                Current Available Balance: @currentBalance.ToString("C")
+            </div>
+        }
+
         <form>
+            <!-- Existing form fields remain the same -->
             <div class="mb-3">
                 <label for="description" class="form-label">Description</label>
                 <input id="description" type="text" class="form-control" @bind="newTransaction.Description" />
@@ -24,17 +33,31 @@
 
             <div class="mb-3">
                 <label for="amount" class="form-label">Amount</label>
-                <input id="amount" type="number" class="form-control" @bind="newTransaction.Amount" />
+                <input id="amount" type="number" class="form-control" @bind="newTransaction.Amount" @bind:after="OnAmountChanged" />
             </div>
 
             <div class="mb-3">
                 <label for="type" class="form-label">Type</label>
-                <select id="type" class="form-control" @bind="newTransaction.Type">
+                <select id="type" class="form-control" @bind="newTransaction.Type" @bind:after="OnTransactionTypeChanged">
                     <option value=""></option>
                     <option value="Income">Income</option>
                     <option value="Expense">Expense</option>
                 </select>
             </div>
+
+            @if (newTransaction.Type == "Income")
+            {
+                <div class="mb-3">
+                    <label for="pendingDebts" class="form-label">Select Pending Debt</label>
+                    <select id="pendingDebts" class="form-control" @bind="selectedDebtId">
+                        <option value="">-- Select Debt --</option>
+                        @foreach (var debt in pendingDebts)
+                        {
+                            <option value="@debt.Id">@debt.Description - Remaining: @debt.RemainingAmount.ToString("C")</option>
+                        }
+                    </select>
+                </div>
+            }
 
             <div class="mb-3">
                 <label for="tags" class="form-label">Tags</label>
@@ -74,29 +97,64 @@
 @code {
     private Transaction newTransaction = new Transaction { Date = DateTime.Now };
     private string errorMessage;
-
-    // List of predefined tags to choose from
-    private List<string> tagOptions = new List<string> { "Fuel",
-    "Rent",
-    "Groceries",
-    "Utilities",
-    "Dining",
-    "Entertainment",
-    "Health",
-    "Travel",
-    "Shopping",
-    "Insurance",
-    "Education",
-    "Savings",
-    "Investment",
-    "Debt Payment",
-    "Salary",
-    "Bonus",
-    "Gifts",
-    "Charity",
-    "Taxes",
-    "Subscriptions"};
     private string selectedTag;
+    private string selectedDebtId;
+    private List<Debt> pendingDebts = new List<Debt>();
+    private decimal currentBalance = 0;
+    private bool showCurrentBalance = false;
+
+    private List<string> tagOptions = new List<string> { "Fuel", "Rent", "Groceries", "Utilities", "Dining", "Entertainment", "Health", "Travel", "Shopping", "Insurance", "Education", "Savings", "Investment", "Debt Payment", "Salary", "Bonus", "Gifts", "Charity", "Taxes", "Subscriptions" };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCurrentBalance();
+        if (newTransaction.Type == "Income")
+        {
+            await LoadPendingDebts();
+        }
+    }
+
+    private async Task LoadCurrentBalance()
+    {
+        currentBalance = await transactionService.CalculateAvailableBalance();
+    }
+
+    private async Task OnAmountChanged()
+    {
+        if (newTransaction.Type == "Expense")
+        {
+            showCurrentBalance = true;
+            await LoadCurrentBalance();
+        }
+    }
+
+    private async Task LoadPendingDebts()
+    {
+        pendingDebts = (await debtService.GetPendingDebtsAsync()).ToList();
+        StateHasChanged();
+    }
+
+    private async Task OnTransactionTypeChanged()
+    {
+        if (newTransaction.Type == "Income")
+        {
+            showCurrentBalance = false;
+            await LoadPendingDebts();
+        }
+        else if (newTransaction.Type == "Expense")
+        {
+            pendingDebts.Clear();
+            selectedDebtId = null;
+            showCurrentBalance = true;
+            await LoadCurrentBalance();
+        }
+        else
+        {
+            showCurrentBalance = false;
+            pendingDebts.Clear();
+            selectedDebtId = null;
+        }
+    }
 
     private async Task SubmitForm()
     {
@@ -108,20 +166,96 @@
                 return;
             }
 
-            // If Custom is selected, use the custom tag entered by the user
             if (selectedTag == "Custom" && string.IsNullOrWhiteSpace(newTransaction.Tags))
             {
                 errorMessage = "Please provide a custom tag.";
                 return;
             }
 
-            // If Custom is not selected, use the selected tag from the dropdown
+            if (newTransaction.Type == "Expense")
+            {
+                // Check if expense amount is greater than available balance
+                var availableBalance = await transactionService.CalculateAvailableBalance();
+                if (newTransaction.Amount > availableBalance)
+                {
+                    errorMessage = $"Insufficient funds. Available balance: {availableBalance:C}";
+                    return;
+                }
+            }
+
             if (selectedTag != "Custom")
             {
                 newTransaction.Tags = selectedTag;
             }
 
-            await transactionService.AddTransactionAsync(newTransaction);
+            // Handle income with debt payment
+            if (newTransaction.Type == "Income" && !string.IsNullOrWhiteSpace(selectedDebtId))
+            {
+                var debt = await debtService.GetDebtByIdAsync(selectedDebtId);
+                if (debt != null)
+                {
+                    decimal inflowAmount = newTransaction.Amount;
+                    var currentUser = authStateService.GetAuthenticatedUser()?.UserName;
+
+                    if (inflowAmount <= debt.RemainingAmount)
+                    {
+                        // Case 1: Income is less than or equal to remaining debt
+                        var debtPaymentTransaction = new Transaction
+                            {
+                                Description = $"Debt Payment - {debt.Description}",
+                                Amount = -inflowAmount,
+                                Date = DateTime.Now,
+                                Type = "Debt",
+                                Tags = "Debt Payment",
+                                Labels = $"Partial payment for debt: {debt.Description}",
+                                UserName = currentUser
+                            };
+
+                        await debtService.MakePaymentAsync(debt.Id, inflowAmount);
+                        await transactionService.AddTransactionAsync(debtPaymentTransaction);
+                    }
+                    else
+                    {
+                        // Case 2: Income is greater than remaining debt
+                        var debtPaymentTransaction = new Transaction
+                            {
+                                Description = $"Debt Payment - {debt.Description}",
+                                Amount = -debt.RemainingAmount,
+                                Date = DateTime.Now,
+                                Type = "Debt",
+                                Tags = "Debt Payment",
+                                Labels = $"Full payment for debt: {debt.Description}",
+                                UserName = currentUser
+                            };
+
+                        var remainingAmount = inflowAmount - debt.RemainingAmount;
+                        var remainingIncomeTransaction = new Transaction
+                            {
+                                Description = $"{newTransaction.Description} (Remaining after debt payment)",
+                                Amount = remainingAmount,
+                                Date = DateTime.Now,
+                                Type = "Income",
+                                Tags = newTransaction.Tags,
+                                Labels = newTransaction.Labels,
+                                UserName = currentUser
+                            };
+
+                        await debtService.MakePaymentAsync(debt.Id, debt.RemainingAmount);
+                        var debts = await debtService.LoadDebtsAsync();
+                        var debtToUpdate = debts.First(d => d.Id == debt.Id);
+                        debtToUpdate.Status = "Completed";
+                        await debtService.SaveDebtsAsync(debts);
+
+                        await transactionService.AddTransactionAsync(debtPaymentTransaction);
+                        await transactionService.AddTransactionAsync(remainingIncomeTransaction);
+                    }
+                }
+            }
+            else
+            {
+                // Regular transaction without debt payment
+                await transactionService.AddTransactionAsync(newTransaction);
+            }
 
             navigationManager.NavigateTo("/transactions");
         }

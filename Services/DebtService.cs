@@ -1,60 +1,67 @@
 ﻿using Coursework.Models;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace Coursework.Services
 {
     public class DebtService : IDebtService
     {
-        private readonly ITransactionService _transactionService;
+        private readonly string _baseDirectory = Path.Combine(AppContext.BaseDirectory, "Data", "Debts");
         private readonly AuthenticationStateService _authStateService;
 
-        public DebtService(
-            ITransactionService transactionService,
-            AuthenticationStateService authStateService)
+        public DebtService(AuthenticationStateService authStateService)
         {
-            _transactionService = transactionService;
             _authStateService = authStateService;
+
+            // Ensure the directory exists
+            if (!Directory.Exists(_baseDirectory))
+            {
+                Directory.CreateDirectory(_baseDirectory);
+            }
+        }
+
+        private string GetUserFilePath()
+        {
+            var currentUser = _authStateService.GetAuthenticatedUser()?.UserName;
+            if (string.IsNullOrEmpty(currentUser))
+            {
+                throw new InvalidOperationException("No authenticated user.");
+            }
+
+            return Path.Combine(_baseDirectory, $"{currentUser}.json");
+        }
+
+        public async Task<List<Debt>> LoadDebtsAsync()
+        {
+            var filePath = GetUserFilePath();
+            if (!File.Exists(filePath))
+            {
+                return new List<Debt>();
+            }
+
+            var jsonData = await File.ReadAllTextAsync(filePath);
+            return JsonSerializer.Deserialize<List<Debt>>(jsonData) ?? new List<Debt>();
+        }
+
+        public async Task SaveDebtsAsync(List<Debt> debts)
+        {
+            var filePath = GetUserFilePath();
+            var jsonData = JsonSerializer.Serialize(debts, new JsonSerializerOptions { WriteIndented = true });
+            await File.WriteAllTextAsync(filePath, jsonData);
         }
 
         public async Task<IEnumerable<Debt>> GetAllDebtsAsync()
         {
-            var transactions = await _transactionService.LoadUserTransactionsAsync();
-            var debts = new Dictionary<string, Debt>();
-
-            foreach (var transaction in transactions.Where(t => t.Type == "Debt"))
-            {
-                // For debt creation transactions (positive amount)
-                if (transaction.Amount > 0)
-                {
-                    var debt = new Debt
-                    {
-                        Id = transaction.Id ?? Guid.NewGuid().ToString(),
-                        Description = transaction.Description,
-                        Amount = transaction.Amount,
-                        Date = transaction.Date,
-                        Source = transaction.Tags,
-                        Labels = transaction.Labels,
-                        UserName = transaction.UserName,
-                        Status = "Pending"
-                    };
-                    debts[debt.Id] = debt;
-                }
-                // For debt payment transactions (negative amount)
-                else if (debts.ContainsKey(transaction.Id))
-                {
-                    debts[transaction.Id].MakePayment(Math.Abs(transaction.Amount));
-                }
-            }
-
-            return debts.Values;
+            return await LoadDebtsAsync();
         }
 
         public async Task<Debt> GetDebtByIdAsync(string id)
         {
-            var debts = await GetAllDebtsAsync();
+            var debts = await LoadDebtsAsync();
             return debts.FirstOrDefault(d => d.Id == id);
         }
 
@@ -63,66 +70,54 @@ namespace Coursework.Services
             if (debt == null)
                 throw new ArgumentNullException(nameof(debt));
 
-            // Set the current user
-            debt.UserName = _authStateService.GetAuthenticatedUser()?.UserName;
+            var currentUser = _authStateService.GetAuthenticatedUser()?.UserName;
+            if (string.IsNullOrEmpty(currentUser))
+                throw new InvalidOperationException("No authenticated user.");
 
-            // Create a transaction for the debt
-            var transaction = new Transaction
-            {
-                Id = debt.Id,
-                Description = debt.Description,
-                Date = debt.Date,
-                Amount = debt.Amount,
-                Type = "Debt",
-                Tags = debt.Source,
-                Labels = debt.Labels,
-                UserName = debt.UserName
-            };
+            debt.UserName = currentUser;
 
-            await _transactionService.AddTransactionAsync(transaction);
+            var debts = await LoadDebtsAsync();
+            debts.Add(debt);
+            await SaveDebtsAsync(debts);
         }
 
         public async Task MakePaymentAsync(string debtId, decimal paymentAmount)
         {
-            var debt = await GetDebtByIdAsync(debtId);
+            var debts = await LoadDebtsAsync();
+            var debt = debts.FirstOrDefault(d => d.Id == debtId);
+
             if (debt == null)
                 throw new InvalidOperationException("Debt not found");
 
-            if (paymentAmount <= 0)
-                throw new ArgumentException("Payment amount must be greater than 0");
-
-            // Create a payment transaction
-            var paymentTransaction = new Transaction
-            {
-                Id = debt.Id,  // Link to original debt
-                Description = $"Payment towards debt: {debt.Description}",
-                Date = DateTime.Now,
-                Amount = -paymentAmount,  // Negative amount to indicate payment
-                Type = "Debt",
-                Tags = "Debt Payment",
-                Labels = "Auto Generated",
-                UserName = debt.UserName
-            };
-
-            await _transactionService.AddTransactionAsync(paymentTransaction);
+            debt.MakePayment(paymentAmount);
+            await SaveDebtsAsync(debts);
         }
 
         public async Task<decimal> GetTotalDebtAsync()
         {
-            var debts = await GetAllDebtsAsync();
+            var debts = await LoadDebtsAsync();
             return debts.Sum(d => d.Amount);
         }
 
         public async Task<decimal> GetTotalPaidDebtAsync()
         {
-            var debts = await GetAllDebtsAsync();
+            var debts = await LoadDebtsAsync();
             return debts.Sum(d => d.AmountPaid);
         }
 
         public async Task<decimal> GetRemainingDebtAsync()
         {
-            var debts = await GetAllDebtsAsync();
+            var debts = await LoadDebtsAsync();
             return debts.Sum(d => d.RemainingAmount);
+        }
+
+        // New method to get pending debts
+        public async Task<IEnumerable<Debt>> GetPendingDebtsAsync()
+        {
+            var debts = await LoadDebtsAsync();
+
+            // Return only debts that have remaining amounts (i.e., not paid off)
+            return debts.Where(d => d.RemainingAmount > 0);
         }
     }
 }

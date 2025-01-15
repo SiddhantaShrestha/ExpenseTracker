@@ -10,19 +10,28 @@ namespace Coursework.Services
 {
     public class TransactionService : ITransactionService
     {
-        private readonly string transactionsDirectory = Path.Combine(AppContext.BaseDirectory, "Transactions");
+        private readonly string transactionsDirectory = Path.Combine(AppContext.BaseDirectory, "Data", "Transactions");
         private readonly AuthenticationStateService _authenticationStateService;
 
         public TransactionService(AuthenticationStateService authenticationStateService)
         {
             _authenticationStateService = authenticationStateService;
             // Ensure the directory exists
-            Directory.CreateDirectory(transactionsDirectory);
+            if (!Directory.Exists(transactionsDirectory))
+            {
+                Directory.CreateDirectory(transactionsDirectory);
+            }
         }
 
-        private string GetUserTransactionsFilePath(string userName)
+        private string GetUserTransactionsFilePath()
         {
-            return Path.Combine(transactionsDirectory, $"{userName}_Transactions.json");
+            var currentUser = _authenticationStateService.GetAuthenticatedUser()?.UserName;
+            if (string.IsNullOrEmpty(currentUser))
+            {
+                throw new InvalidOperationException("No authenticated user.");
+            }
+
+            return Path.Combine(transactionsDirectory, $"{currentUser}.json");
         }
 
         public async Task<IEnumerable<Transaction>> GetFilteredTransactions(DateTime? fromDate, DateTime? toDate, string tagFilter, string typeFilter)
@@ -45,12 +54,63 @@ namespace Coursework.Services
             return filtered;
         }
 
+        public async Task<int> CountTransactionsAsync(DateTime? fromDate, DateTime? toDate, string tagFilter, string typeFilter)
+        {
+            var transactions = await LoadUserTransactionsAsync();
+            var filtered = transactions.AsEnumerable();
+
+            if (fromDate.HasValue)
+                filtered = filtered.Where(t => t.Date >= fromDate.Value);
+
+            if (toDate.HasValue)
+                filtered = filtered.Where(t => t.Date <= toDate.Value);
+
+            if (!string.IsNullOrEmpty(tagFilter))
+                filtered = filtered.Where(t => t.Tags != null && t.Tags.Contains(tagFilter, StringComparison.OrdinalIgnoreCase));
+
+            if (!string.IsNullOrEmpty(typeFilter))
+                filtered = filtered.Where(t => t.Type.Equals(typeFilter, StringComparison.OrdinalIgnoreCase));
+
+            // Count the filtered transactions
+            return filtered.Count();
+        }
+
+        public async Task<decimal> CalculateTotalTransactions()
+        {
+            var transactions = await LoadUserTransactionsAsync();
+
+            // Calculate the total sum of all transaction amounts, converting negative "Debt Cleared" transactions to positive
+            var total = transactions.Sum(t =>
+            {
+                if (t.Type == "Debt" && t.Amount < 0)
+                {
+                    // Treat debt-cleared transactions as positive when calculating the total
+                    return Math.Abs(t.Amount); // Convert to positive value
+                }
+
+                // Normal transaction sum
+                return t.Amount;
+            });
+
+            return total;
+        }
+
+
         public async Task AddTransactionAsync(Transaction transaction)
         {
             if (transaction == null || string.IsNullOrWhiteSpace(transaction.Description))
             {
                 throw new ArgumentException("Invalid transaction data.");
             }
+
+            var currentUser = _authenticationStateService.GetAuthenticatedUser()?.UserName;
+            if (string.IsNullOrEmpty(currentUser))
+            {
+                throw new InvalidOperationException("No authenticated user.");
+            }
+
+            // Ensure the UserName is set for the transaction
+            transaction.UserName = currentUser;
 
             var transactions = await LoadUserTransactionsAsync();
 
@@ -72,7 +132,8 @@ namespace Coursework.Services
                         Amount = -debtToClear,  // Negative amount to indicate debt clearing
                         Type = "Debt",
                         Tags = "Debt Cleared",
-                        Labels = "Auto Generated"
+                        Labels = "Auto Generated",
+                        UserName = currentUser // Ensure the username is set
                     });
 
                     // Subtract the cleared debt from the income amount
@@ -115,8 +176,6 @@ namespace Coursework.Services
                             && t.Type.Equals(type, StringComparison.OrdinalIgnoreCase))
                 .Sum(t => t.Amount); // Directly sum the Amount
         }
-
-
 
         public async Task<decimal> CalculateAvailableBalance()
         {
@@ -174,13 +233,12 @@ namespace Coursework.Services
                                .Sum(t => Math.Abs(t.Amount));
         }
 
-
         public async Task<List<Transaction>> LoadUserTransactionsAsync()
         {
             try
             {
                 var userName = GetAuthenticatedUserName();
-                var filePath = GetUserTransactionsFilePath(userName);
+                var filePath = GetUserTransactionsFilePath();
 
                 if (!File.Exists(filePath))
                 {
@@ -208,13 +266,11 @@ namespace Coursework.Services
             }
         }
 
-
         private async Task SaveUserTransactionsAsync(List<Transaction> transactions)
         {
             try
             {
-                var userName = GetAuthenticatedUserName();
-                var filePath = GetUserTransactionsFilePath(userName);
+                var filePath = GetUserTransactionsFilePath();
 
                 var json = JsonSerializer.Serialize(transactions, new JsonSerializerOptions { WriteIndented = true });
                 await File.WriteAllTextAsync(filePath, json);
@@ -266,15 +322,14 @@ namespace Coursework.Services
         {
             try
             {
-                foreach (var transaction in transactions)
-                {
-                    var filePath = GetUserTransactionsFilePath(transaction.UserName);
-                    var existingTransactions = await LoadUserTransactionsAsync();
-                    existingTransactions.Add(transaction);
+                var userName = GetAuthenticatedUserName();
+                var filePath = GetUserTransactionsFilePath();
 
-                    var json = JsonSerializer.Serialize(existingTransactions, new JsonSerializerOptions { WriteIndented = true });
-                    await File.WriteAllTextAsync(filePath, json);
-                }
+                var existingTransactions = await LoadUserTransactionsAsync();
+                existingTransactions.AddRange(transactions); // Add new transactions to the existing ones
+
+                var json = JsonSerializer.Serialize(existingTransactions, new JsonSerializerOptions { WriteIndented = true });
+                await File.WriteAllTextAsync(filePath, json);
             }
             catch (Exception ex)
             {
@@ -282,5 +337,6 @@ namespace Coursework.Services
                 throw;
             }
         }
+
     }
 }

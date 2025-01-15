@@ -2,15 +2,35 @@
 @using Coursework.Models
 @using Coursework.Services
 @inject AuthenticationStateService authStateService
+@implements IDisposable
 
 <MudNavMenu>
     @if (!authStateService.IsAuthenticated())
     {
+        <!-- Show Login and Register links when user is not authenticated -->
         <MudNavLink Href="/" Match="NavLinkMatch.All">Login</MudNavLink>
         <MudNavLink Href="/register" Match="NavLinkMatch.All">Register</MudNavLink>
     }
-    <MudNavLink Href="/dashboard" Match="NavLinkMatch.All">Dashboard</MudNavLink>
-    <MudNavLink Href="/transactions" Match="NavLinkMatch.All">Transactions</MudNavLink>
-    <MudNavLink Href="/transaction-flow" Match="NavLinkMatch.All">Transaction Form</MudNavLink>
-    <MudNavLink Href="/add-debt" Match="NavLinkMatch.All">Debt Form</MudNavLink>
+    else
+    {
+        <!-- Show these links when user is authenticated -->
+        <MudNavLink Href="/dashboard" Match="NavLinkMatch.All">Dashboard</MudNavLink>
+        <MudNavLink Href="/transactions" Match="NavLinkMatch.All">Transactions</MudNavLink>
+        <MudNavLink Href="/transaction-flow" Match="NavLinkMatch.All">Transaction Form</MudNavLink>
+        <MudNavLink Href="/add-debt" Match="NavLinkMatch.All">Debt Form</MudNavLink>
+    }
 </MudNavMenu>
+
+@code {
+    protected override void OnInitialized()
+    {
+        // Subscribe to the authentication state change event
+        authStateService.OnAuthenticationStateChanged += StateHasChanged;
+    }
+
+    public void Dispose()
+    {
+        // Unsubscribe from the event when the component is disposed
+        authStateService.OnAuthenticationStateChanged -= StateHasChanged;
+    }
+}

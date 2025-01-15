@@ -8,7 +8,6 @@ namespace Coursework.Models
     {
         public string Id { get; set; } = Guid.NewGuid().ToString();
 
-        [Required]
         public string Description { get; set; }
 
         [Required]
@@ -37,11 +36,6 @@ namespace Coursework.Models
 
         public decimal PercentagePaid => Amount > 0 ? (AmountPaid / Amount) * 100 : 0;
 
-        /// <summary>
-        /// Makes a payment towards the debt and updates the status accordingly
-        /// </summary>
-        /// <param name="paymentAmount">The amount being paid</param>
-        /// <exception cref="ArgumentException">Thrown when payment amount is less than or equal to 0</exception>
         public void MakePayment(decimal paymentAmount)
         {
             if (paymentAmount <= 0)

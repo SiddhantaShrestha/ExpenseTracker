@@ -78,7 +78,6 @@ namespace Coursework.Services
                                .Sum(t => t.Amount);
         }
 
-
         public async Task<decimal> CalculateAvailableBalance()
         {
             var transactions = await LoadUserTransactionsAsync();
@@ -217,6 +216,14 @@ namespace Coursework.Services
                 Console.WriteLine($"Error saving all transactions: {ex.Message}");
                 throw;
             }
+        }
+
+        // New method to get pending debts
+        public async Task<List<Transaction>> GetPendingDebtsAsync()
+        {
+            var transactions = await LoadUserTransactionsAsync();
+
+            return transactions.Where(t => t.Type == "Debt" && t.Amount > 0).ToList();
         }
     }
 }

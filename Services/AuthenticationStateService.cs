@@ -7,16 +7,18 @@ namespace Coursework.Services
     {
         private User authenticatedUser;
 
+        public event Action OnAuthenticationStateChanged;
+
         public User GetAuthenticatedUser()
         {
             return authenticatedUser;
         }
 
-
         public void SetAuthenticatedUser(User user)
         {
             authenticatedUser = user;
             Console.WriteLine(authenticatedUser);
+            OnAuthenticationStateChanged?.Invoke(); // Notify subscribers about the state change
         }
 
         public string GetUserCurrency()
@@ -27,16 +29,13 @@ namespace Coursework.Services
 
         public bool IsAuthenticated()
         {
-            if (authenticatedUser != null)
-            {
-                return true;
-            }
-            return false;
+            return authenticatedUser != null;
         }
 
         public void Logout()
         {
             authenticatedUser = null;
+            OnAuthenticationStateChanged?.Invoke(); // Notify subscribers about the state change
         }
     }
 }

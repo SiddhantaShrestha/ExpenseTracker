@@ -16,5 +16,8 @@ namespace Coursework.Services
 
         Task<List<Transaction>> LoadAllTransactionsAsync();
         Task SaveAllTransactionsAsync(List<Transaction> transactions);
+
+        // New method for getting pending debts
+        Task<List<Transaction>> GetPendingDebtsAsync();
     }
 }

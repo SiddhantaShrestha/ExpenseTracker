@@ -31,7 +31,6 @@
                 <input id="dueDate" type="date" class="form-control" @bind="newDebt.DueDate" />
             </div>
 
-            <!-- Tags Dropdown -->
             <div class="mb-3">
                 <label for="tags" class="form-label">Source</label>
                 <select id="tags" class="form-control" @bind="selectedTag">
@@ -89,27 +88,21 @@
                 return;
             }
 
-            // If Custom is selected, validate custom tag
             if (selectedTag == "Custom" && string.IsNullOrWhiteSpace(newDebt.Source))
             {
                 errorMessage = "Please provide a custom source.";
                 return;
             }
 
-            // If Custom is not selected, use the selected tag from the dropdown
             if (selectedTag != "Custom")
             {
                 newDebt.Source = selectedTag;
             }
 
-            // Set initial status
             newDebt.Status = "Pending";
             newDebt.AmountPaid = 0;
 
-            // Add the debt using DebtService
             await debtService.AddDebtAsync(newDebt);
-
-            // Navigate to transactions page after successful addition
             navigationManager.NavigateTo("/transactions");
         }
         catch (Exception ex)

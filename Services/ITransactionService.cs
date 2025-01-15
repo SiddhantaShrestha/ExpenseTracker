@@ -36,5 +36,12 @@ namespace Coursework.Services
 
         // Save all transactions for the authenticated user
         Task SaveAllTransactionsAsync(List<Transaction> transactions);
+
+        // Calculate the total amount for all transactions (sum of all transactions)
+        Task<decimal> CalculateTotalTransactions();
+
+
+        // Count the number of transactions that match the given criteria
+        Task<int> CountTransactionsAsync(DateTime? fromDate, DateTime? toDate, string tagFilter, string typeFilter);
     }
 }

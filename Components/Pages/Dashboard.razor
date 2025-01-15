@@ -2,11 +2,14 @@
 @using MudBlazor
 @using Coursework.Models
 @using Coursework.Services
-@inject IDashboardService dashboardService
+@inject ITransactionService transactionService
 @inject IUserService userService
 @inject AuthenticationStateService authStateService
+@inject IDebtService debtService
+
 
 <style>
+    /* Existing general styles for dashboard cards */
     .dashboard-card {
         border-radius: 10px;
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
@@ -27,10 +30,11 @@
         margin-top: 20px;
     }
 
+    /* General styles for Top 5 and Bottom 5 Transactions (unchanged) */
     .transaction-header,
     .transaction-item {
         display: grid;
-        grid-template-columns: repeat(5, 1fr);
+        grid-template-columns: repeat(5, 1fr); /* 5 columns for other transactions */
         justify-items: center;
         align-items: center;
         font-size: 0.9rem;
@@ -86,6 +90,43 @@
     .dashboard-card.bg-warning {
         background-color: #ffc107;
     }
+
+    /* New styles specifically for Pending Debts section */
+    .dashboard-card .pending-debt-list .transaction-header,
+    .dashboard-card .pending-debt-list .transaction-item {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr); /* 7 columns for Pending Debts */
+        justify-items: center;
+        align-items: center;
+        font-size: 0.9rem;
+        padding: 10px 0;
+        border-bottom: 1px solid #eee;
+    }
+
+    .dashboard-card .pending-debt-list .transaction-header {
+        font-weight: bold;
+        border-bottom: 2px solid #ccc;
+        background-color: #f9f9f9;
+    }
+
+    .dashboard-card .pending-debt-list .transaction-item {
+        transition: background-color 0.3s;
+    }
+
+        .dashboard-card .pending-debt-list .transaction-item:hover {
+            background-color: #f1f1f1;
+        }
+
+        .dashboard-card .pending-debt-list .transaction-header span,
+        .dashboard-card .pending-debt-list .transaction-item span {
+            text-align: center;
+        }
+
+        .dashboard-card .pending-debt-list .transaction-item span {
+            word-wrap: break-word; /* Helps with long text like labels */
+            padding: 5px 0;
+        }
+
 </style>
 
 @if (authStateService.IsAuthenticated())
@@ -122,18 +163,21 @@
                     <h2>@($"{authStateService.GetUserCurrency()}{remainingDebt}")</h2>
                 </div>
             </div>
+
             <div class="col-md-4">
                 <div class="dashboard-card bg-secondary text-white text-center">
                     <h5>Original Debt</h5>
                     <h2>@($"{authStateService.GetUserCurrency()}{originalDebt}")</h2>
                 </div>
             </div>
+
             <div class="col-md-4">
                 <div class="dashboard-card bg-primary text-white text-center">
                     <h5>Cleared Debt</h5>
                     <h2>@($"{authStateService.GetUserCurrency()}{clearedDebt}")</h2>
                 </div>
             </div>
+
         </div>
        
 
@@ -242,6 +286,41 @@
                             </div>
                         </div>
                     </div>
+
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="dashboard-card">
+                                <h5>Pending Debts</h5>
+
+                                <div class="transaction-list pending-debt-list">
+                                    <div class="transaction-header">
+                                        <span>Title</span>
+                                        <span>Source</span>
+                                        <span>Amount</span>
+                                        <span>Date</span>
+                                        <span>Due Date</span>
+                                        <span>Status</span>
+                                        <span>Note</span>
+                                    </div>
+
+                                    @foreach (var debt in pendingDebts)
+                                    {
+                                        <div class="transaction-item">
+                                            <span>@debt.Description</span>
+                                            <span>@debt.Source</span>
+                                            <span>@($"{authStateService.GetUserCurrency()}{debt.Amount}")</span>
+                                            <span>@debt.Date.ToString("yyyy-MM-dd")</span>
+                                            <span>@debt.DueDate?.ToString("yyyy-MM-dd")</span>
+                                            <span class="@(debt.Status == "Pending" ? "text-warning" : "text-success")">@debt.Status</span>
+                                            <span>@debt.Labels</span>
+                                        </div>
+                                    }
+                                </div>
+                          
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>
@@ -267,11 +346,22 @@
 
 
  
+    private List<Debt> pendingDebts = new List<Debt>();
+
     protected override async Task OnInitializedAsync()
     {
         await UpdateFilteredTransactions();
         await CalculateTotals();
+        await LoadPendingDebts();
     }
+
+    private async Task LoadPendingDebts()
+    {
+        // Fetch the list of pending debts (you can modify this logic based on your data model)
+        pendingDebts = (await debtService.GetPendingDebtsAsync()).ToList();
+        StateHasChanged();
+    }
+
 
     private IEnumerable<Transaction> TopTransactions => _filteredTransactions
         .OrderByDescending(t => t.Amount)
@@ -285,7 +375,7 @@
 
     private async Task UpdateFilteredTransactions()
     {
-        _filteredTransactions = await dashboardService.GetFilteredTransactions(fromDate, toDate, tagFilter, typeFilter);
+        _filteredTransactions = await transactionService.GetFilteredTransactions(fromDate, toDate, tagFilter, typeFilter);
         StateHasChanged();
     }
 
@@ -302,14 +392,15 @@
         await UpdateFilteredTransactions();
     }
 
+
     private async Task CalculateTotals()
     {
-        totalIncome = await dashboardService.CalculateTotal("Income");
-        totalExpense = await dashboardService.CalculateTotal("Expense");
-        remainingDebt = await dashboardService.CalculateRemainingDebt();
-        originalDebt = await dashboardService.CalculateOriginalDebt();
-        clearedDebt = await dashboardService.CalculateClearedDebt();
-        availableBalance = await dashboardService.CalculateAvailableBalance();
+        totalIncome = await transactionService.CalculateTotal("Income");
+        totalExpense = await transactionService.CalculateTotal("Expense");
+        remainingDebt = await debtService.GetRemainingDebtAsync();
+        originalDebt = await debtService.GetTotalDebtAsync();
+        clearedDebt = await debtService.GetTotalPaidDebtAsync();
+        availableBalance = await transactionService.CalculateAvailableBalance();
     }
 
     private double[] chartData => new[] {

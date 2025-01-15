@@ -5,81 +5,83 @@
 @inject ITransactionService transactionService
 @inject AuthenticationStateService authStateService
 @inject NavigationManager navigationManager
+@inject IDebtService debtService
+
 <style>
     .dashboard-card {
-        border-radius: 10px;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        padding: 20px;
-        margin-bottom: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    margin-bottom: 20px;
     }
 
     .dashboard-header {
-        display: flex;
-        justify-content: space-between;
+    display: flex;
+    justify-content: space-between;
     }
 
     .chart-container {
-        height: 300px;
+    height: 300px;
     }
 
     .transaction-list {
-        margin-top: 20px;
+    margin-top: 20px;
     }
 
     .transaction-header,
     .transaction-item {
-        display: grid;
-        grid-template-columns: repeat(6, 1fr);
-        justify-items: center;
-        align-items: center;
-        font-size: 0.9rem;
-        padding: 10px 0;
-        border-bottom: 1px solid #eee;
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    justify-items: center;
+    align-items: center;
+    font-size: 0.9rem;
+    padding: 10px 0;
+    border-bottom: 1px solid #eee;
     }
 
     .transaction-header {
-        font-weight: bold;
-        border-bottom: 2px solid #eee;
+    font-weight: bold;
+    border-bottom: 2px solid #eee;
     }
 
     .clickable {
-        cursor: pointer;
-        user-select: none;
+    cursor: pointer;
+    user-select: none;
     }
 
-        .clickable:hover {
-            color: #6644FA;
-        }
+    .clickable:hover {
+    color: #6644FA;
+    }
 
     .error-message {
-        color: red;
-        font-weight: bold;
+    color: red;
+    font-weight: bold;
     }
 
     .dashboard-card h5 {
-        font-size: 1.2rem;
+    font-size: 1.2rem;
     }
 
     .dashboard-card h2 {
-        font-size: 2rem;
-        font-weight: bold;
+    font-size: 2rem;
+    font-weight: bold;
     }
 
     .col-md-4 {
-        display: flex;
-        justify-content: center;
+    display: flex;
+    justify-content: center;
     }
 
     .dashboard-card.bg-success {
-        background-color: #28a745;
+    background-color: #28a745;
     }
 
     .dashboard-card.bg-danger {
-        background-color: #dc3545;
+    background-color: #dc3545;
     }
 
     .dashboard-card.bg-warning {
-        background-color: #ffc107;
+    background-color: #ffc107;
     }
 </style>
 
@@ -95,35 +97,30 @@
             </div>
             <div class="col-md-4">
                 <div class="dashboard-card bg-success text-white text-center">
-                    <h5>Total Inflows</h5>
-                    <h2>@($"{authStateService.GetUserCurrency()}{totalIncome}")</h2>
+                    <h5>Total Number</h5>
+                    <h2>Transactions Done: @transactionCount</h2>
                 </div>
             </div>
             <div class="col-md-4">
                 <div class="dashboard-card bg-danger text-white text-center">
-                    <h5>Total Outflows</h5>
-                    <h2>@($"{authStateService.GetUserCurrency()}{totalExpense}")</h2>
+                    <h5>Total transactions</h5>
+                    <h2>@($"{authStateService.GetUserCurrency()}{Math.Abs(totalTransactions)}" )</h2>
                 </div>
             </div>
         </div>
 
+
         <div class="row">
             <div class="col-md-4">
-                <div class="dashboard-card bg-info text-white text-center">
-                    <h5>Remaining Debt</h5>
-                    <h2>@($"{authStateService.GetUserCurrency()}{remainingDebt}")</h2>
+                <div class="dashboard-card bg-success text-white text-center">
+                    <h5>Highest Transaction</h5>
+                    <h2>@($"{authStateService.GetUserCurrency()}{highestTransaction}")</h2>
                 </div>
             </div>
             <div class="col-md-4">
-                <div class="dashboard-card bg-secondary text-white text-center">
-                    <h5>Original Debt</h5>
-                    <h2>@($"{authStateService.GetUserCurrency()}{originalDebt}")</h2>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="dashboard-card bg-primary text-white text-center">
-                    <h5>Cleared Debt</h5>
-                    <h2>@($"{authStateService.GetUserCurrency()}{clearedDebt}")</h2>
+                <div class="dashboard-card bg-danger text-white text-center">
+                    <h5>Lowest Transaction</h5>
+                    <h2>@($"{authStateService.GetUserCurrency()}{Math.Abs(lowestTransaction)}")</h2>
                 </div>
             </div>
         </div>
@@ -139,10 +136,19 @@
             <button class="btn btn-primary" @onclick="NavigateToTransactionFlow">Add Transaction</button>
         </div>
 
+
         <div class="row">
             <div class="col-md-12">
                 <div class="dashboard-card">
                     <h5>Transactions</h5>
+
+                    <!-- Search bar for transaction title -->
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <label for="titleSearch">Search by Title:</label>
+                            <input type="text" id="titleSearch" class="form-control" @bind="titleSearch" @bind:after="OnTitleSearchChanged" />
+                        </div>
+                    </div>
 
                     <div class="row mb-3">
                         <div class="col-md-6">
@@ -204,7 +210,7 @@
                             <div class="transaction-item">
                                 <span>@transaction.Description</span>
                                 <span>@transaction.Date.ToString("yyyy-MM-dd")</span>
-                                <span>@($"{authStateService.GetUserCurrency()}{transaction.Amount}")</span>
+                                <span>@($"{authStateService.GetUserCurrency()}{(transaction.Type == "Debt" && transaction.Amount < 0 ? Math.Abs(transaction.Amount) : transaction.Amount)}")</span>
                                 <span class="@(transaction.Type == "Income" ? "text-success" : "text-danger")">@transaction.Type</span>
                                 <span>@transaction.Tags</span>
                                 <span>@transaction.Labels</span>
@@ -226,10 +232,14 @@
     private decimal totalIncome;
     private decimal totalExpense;
     private decimal availableBalance;
+    private decimal totalDebt;
+    private decimal totalPaidDebt;
     private decimal remainingDebt;
     private decimal originalDebt;
     private decimal clearedDebt;
     private List<string> tagOptions = new List<string> { "Fuel", "Rent", "Groceries", "Custom" };
+    private string titleSearch = string.Empty;
+
     private string tagFilter = string.Empty;
     private string typeFilter = string.Empty;
     private IEnumerable<Transaction> _filteredTransactions = new List<Transaction>();
@@ -241,17 +251,52 @@
 
     private int currentPage = 1;
     private const int pageSize = 10;
+    private int transactionCount;
+    private decimal totalTransactions;
+    private decimal highestTransaction;
+    private decimal lowestTransaction;
+
 
     protected override async Task OnInitializedAsync()
     {
         await UpdateFilteredTransactions();
         await CalculateTotal();
+        await CalculateDebtData();
+        await UpdateTransactionCount();
+        await CalculateTotalTransactions();
+    }
+
+    private async Task CalculateDebtData()
+    {
+        totalDebt = await debtService.GetTotalDebtAsync();
+        totalPaidDebt = await debtService.GetTotalPaidDebtAsync();
+        remainingDebt = await debtService.GetRemainingDebtAsync();
+    }
+
+    private async Task UpdateTransactionCount()
+    {
+        transactionCount = await transactionService.CountTransactionsAsync(fromDate, toDate, tagFilter, typeFilter);
+    }
+
+    private async Task CalculateTotalTransactions()
+    {
+        totalTransactions = await transactionService.CalculateTotalTransactions();
+        StateHasChanged(); //To make sure than UI gets updated
     }
 
     private async Task UpdateFilteredTransactions()
     {
         _filteredTransactions = await transactionService.GetFilteredTransactions(fromDate, toDate, tagFilter, typeFilter);
+        if (!string.IsNullOrEmpty(titleSearch))
+        {
+            _filteredTransactions = _filteredTransactions.Where(t => t.Description.Contains(titleSearch, StringComparison.OrdinalIgnoreCase));
+        }
         StateHasChanged();
+    }
+
+    private async Task OnTitleSearchChanged()
+    {
+        await UpdateFilteredTransactions();
     }
 
     private async Task OnDateRangeChanged()
@@ -301,11 +346,31 @@
     {
         totalIncome = await transactionService.CalculateTotal("Income");
         totalExpense = await transactionService.CalculateTotal("Expense");
-        remainingDebt = await transactionService.CalculateRemainingDebt();
-        originalDebt = await transactionService.CalculateOriginalDebt();
-        clearedDebt = await transactionService.CalculateClearedDebt();
+        remainingDebt = await debtService.GetRemainingDebtAsync();
+        originalDebt = await debtService.GetTotalDebtAsync();
+        clearedDebt = await debtService.GetTotalPaidDebtAsync();
         availableBalance = await transactionService.CalculateAvailableBalance();
+
+        // Calculate highest and lowest transactions
+        var allTransactions = await transactionService.LoadUserTransactionsAsync();
+        if (allTransactions.Any())
+        {
+            highestTransaction = allTransactions
+                .Select(t => t.Type == "Debt" ? Math.Abs(t.Amount) : t.Amount) // Convert debt amount to positive
+                .Max();
+
+            lowestTransaction = allTransactions
+                .Select(t => t.Type == "Debt" ? Math.Abs(t.Amount) : t.Amount) // Convert debt amount to positive
+                .Min();
+        }
+        else
+        {
+            highestTransaction = 0;
+            lowestTransaction = 0;
+        }
     }
+
+
 
     private IEnumerable<Transaction> PaginatedTransactions =>
         SortedFilteredTransactions.Skip((currentPage - 1) * pageSize).Take(pageSize);
@@ -332,3 +397,4 @@
         }
     }
 }
+
