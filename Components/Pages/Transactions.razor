@@ -1,0 +1,334 @@
+﻿@page "/transactions"
+@using MudBlazor
+@using Coursework.Models
+@using Coursework.Services
+@inject ITransactionService transactionService
+@inject AuthenticationStateService authStateService
+@inject NavigationManager navigationManager
+<style>
+    .dashboard-card {
+        border-radius: 10px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+
+    .dashboard-header {
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .chart-container {
+        height: 300px;
+    }
+
+    .transaction-list {
+        margin-top: 20px;
+    }
+
+    .transaction-header,
+    .transaction-item {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        justify-items: center;
+        align-items: center;
+        font-size: 0.9rem;
+        padding: 10px 0;
+        border-bottom: 1px solid #eee;
+    }
+
+    .transaction-header {
+        font-weight: bold;
+        border-bottom: 2px solid #eee;
+    }
+
+    .clickable {
+        cursor: pointer;
+        user-select: none;
+    }
+
+        .clickable:hover {
+            color: #6644FA;
+        }
+
+    .error-message {
+        color: red;
+        font-weight: bold;
+    }
+
+    .dashboard-card h5 {
+        font-size: 1.2rem;
+    }
+
+    .dashboard-card h2 {
+        font-size: 2rem;
+        font-weight: bold;
+    }
+
+    .col-md-4 {
+        display: flex;
+        justify-content: center;
+    }
+
+    .dashboard-card.bg-success {
+        background-color: #28a745;
+    }
+
+    .dashboard-card.bg-danger {
+        background-color: #dc3545;
+    }
+
+    .dashboard-card.bg-warning {
+        background-color: #ffc107;
+    }
+</style>
+
+@if (authStateService.IsAuthenticated())
+{
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="dashboard-card bg-success text-white text-center">
+                    <h5>Available Balance</h5>
+                    <h2>@($"{authStateService.GetUserCurrency()}{availableBalance}")</h2>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="dashboard-card bg-success text-white text-center">
+                    <h5>Total Inflows</h5>
+                    <h2>@($"{authStateService.GetUserCurrency()}{totalIncome}")</h2>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="dashboard-card bg-danger text-white text-center">
+                    <h5>Total Outflows</h5>
+                    <h2>@($"{authStateService.GetUserCurrency()}{totalExpense}")</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-4">
+                <div class="dashboard-card bg-info text-white text-center">
+                    <h5>Remaining Debt</h5>
+                    <h2>@($"{authStateService.GetUserCurrency()}{remainingDebt}")</h2>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="dashboard-card bg-secondary text-white text-center">
+                    <h5>Original Debt</h5>
+                    <h2>@($"{authStateService.GetUserCurrency()}{originalDebt}")</h2>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="dashboard-card bg-primary text-white text-center">
+                    <h5>Cleared Debt</h5>
+                    <h2>@($"{authStateService.GetUserCurrency()}{clearedDebt}")</h2>
+                </div>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="error-message">
+                @errorMessage
+            </div>
+        }
+
+        <div class="d-flex justify-content-end mb-3">
+            <button class="btn btn-primary" @onclick="NavigateToTransactionFlow">Add Transaction</button>
+        </div>
+
+        <div class="row">
+            <div class="col-md-12">
+                <div class="dashboard-card">
+                    <h5>Transactions</h5>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="fromDate">From:</label>
+                            <input type="date" id="fromDate" class="form-control" @bind="fromDate" @bind:after="OnDateRangeChanged" />
+                        </div>
+                        <div class="col-md-6">
+                            <label for="toDate">To:</label>
+                            <input type="date" id="toDate" class="form-control" @bind="toDate" @bind:after="OnDateRangeChanged" />
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="tagFilter">Tag:</label>
+                            <select id="tagFilter" class="form-control" @bind="tagFilter" @bind:after="OnFiltersChanged">
+                                <option value="">All</option>
+                                @foreach (var tag in tagOptions)
+                                {
+                                    <option value="@tag">@tag</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="typeFilter">Type:</label>
+                            <select id="typeFilter" class="form-control" @bind="typeFilter" @bind:after="OnFiltersChanged">
+                                <option value="">All</option>
+                                <option value="Income">Income</option>
+                                <option value="Expense">Expense</option>
+                                <option value="Debt">Debt</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="transaction-list">
+                        <div class="transaction-header">
+                            <span class="clickable" @onclick='() => ToggleSort("Title")'>
+                                Title @(sortField == "Title" ? (sortAscending ? "↑" : "↓") : "")
+                            </span>
+                            <span class="clickable" @onclick='() => ToggleSort("Date")'>
+                                Date @(sortField == "Date" ? (sortAscending ? "↑" : "↓") : "")
+                            </span>
+                            <span class="clickable" @onclick='() => ToggleSort("Amount")'>
+                                Amount @(sortField == "Amount" ? (sortAscending ? "↑" : "↓") : "")
+                            </span>
+                            <span class="clickable" @onclick='() => ToggleSort("Type")'>
+                                Type @(sortField == "Type" ? (sortAscending ? "↑" : "↓") : "")
+                            </span>
+                            <span class="clickable" @onclick='() => ToggleSort("Tags/Sources")'>
+                                Tags @(sortField == "Tags" ? (sortAscending ? "↑" : "↓") : "")
+                            </span>
+                            <span class="clickable" @onclick='() => ToggleSort("Labels")'>
+                                Notes @(sortField == "Labels" ? (sortAscending ? "↑" : "↓") : "")
+                            </span>
+                        </div>
+
+                        @foreach (var transaction in PaginatedTransactions)
+                        {
+                            <div class="transaction-item">
+                                <span>@transaction.Description</span>
+                                <span>@transaction.Date.ToString("yyyy-MM-dd")</span>
+                                <span>@($"{authStateService.GetUserCurrency()}{transaction.Amount}")</span>
+                                <span class="@(transaction.Type == "Income" ? "text-success" : "text-danger")">@transaction.Type</span>
+                                <span>@transaction.Tags</span>
+                                <span>@transaction.Labels</span>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="d-flex justify-content-between mt-3">
+                        <button class="btn btn-secondary" @onclick="PreviousPage" disabled="@(!HasPreviousPage)">Previous</button>
+                        <button class="btn btn-secondary" @onclick="NextPage" disabled="@(!HasNextPage)">Next</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private decimal totalIncome;
+    private decimal totalExpense;
+    private decimal availableBalance;
+    private decimal remainingDebt;
+    private decimal originalDebt;
+    private decimal clearedDebt;
+    private List<string> tagOptions = new List<string> { "Fuel", "Rent", "Groceries", "Custom" };
+    private string tagFilter = string.Empty;
+    private string typeFilter = string.Empty;
+    private IEnumerable<Transaction> _filteredTransactions = new List<Transaction>();
+    private DateTime? fromDate;
+    private DateTime? toDate;
+    private string sortField = "Date";
+    private bool sortAscending = false;
+    private string errorMessage;
+
+    private int currentPage = 1;
+    private const int pageSize = 10;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await UpdateFilteredTransactions();
+        await CalculateTotal();
+    }
+
+    private async Task UpdateFilteredTransactions()
+    {
+        _filteredTransactions = await transactionService.GetFilteredTransactions(fromDate, toDate, tagFilter, typeFilter);
+        StateHasChanged();
+    }
+
+    private async Task OnDateRangeChanged()
+    {
+        await UpdateFilteredTransactions();
+        await CalculateTotal();
+    }
+
+    private async Task OnFiltersChanged()
+    {
+        await UpdateFilteredTransactions();
+    }
+
+    private IEnumerable<Transaction> SortedFilteredTransactions =>
+        _filteredTransactions.OrderBy(t => sortAscending ? GetSortValue(t, sortField) : null)
+                             .OrderByDescending(t => !sortAscending ? GetSortValue(t, sortField) : null);
+
+    private object GetSortValue(Transaction t, string field) => field switch
+    {
+        "Date" => t.Date,
+        "Amount" => t.Amount,
+        "Description" => t.Description,
+        "Type" => t.Type,
+        _ => t.Date
+    };
+
+    private void ToggleSort(string field)
+    {
+        if (sortField == field)
+        {
+            sortAscending = !sortAscending;
+        }
+        else
+        {
+            sortField = field;
+            sortAscending = true;
+        }
+        StateHasChanged();
+    }
+
+    private void NavigateToTransactionFlow()
+    {
+        navigationManager.NavigateTo("/transaction-flow");
+    }
+
+    private async Task CalculateTotal()
+    {
+        totalIncome = await transactionService.CalculateTotal("Income");
+        totalExpense = await transactionService.CalculateTotal("Expense");
+        remainingDebt = await transactionService.CalculateRemainingDebt();
+        originalDebt = await transactionService.CalculateOriginalDebt();
+        clearedDebt = await transactionService.CalculateClearedDebt();
+        availableBalance = await transactionService.CalculateAvailableBalance();
+    }
+
+    private IEnumerable<Transaction> PaginatedTransactions =>
+        SortedFilteredTransactions.Skip((currentPage - 1) * pageSize).Take(pageSize);
+
+    private bool HasNextPage => SortedFilteredTransactions.Count() > currentPage * pageSize;
+
+    private bool HasPreviousPage => currentPage > 1;
+
+    private void NextPage()
+    {
+        if (HasNextPage)
+        {
+            currentPage++;
+            StateHasChanged();
+        }
+    }
+
+    private void PreviousPage()
+    {
+        if (HasPreviousPage)
+        {
+            currentPage--;
+            StateHasChanged();
+        }
+    }
+}

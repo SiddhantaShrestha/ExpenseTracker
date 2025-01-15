@@ -1,0 +1,236 @@
+﻿@page "/register"
+@using Coursework.Models
+@using Coursework.Services
+@inject IUserService userService
+@inject NavigationManager navigationManager
+
+<style>
+    /* Add User Form Styles */
+    .add-user-container {
+        width: 500px;
+        margin: 50px auto;
+        padding: 20px;
+        background-color: #fff;
+        border-radius: 10px;
+        /* Apply the box-shadow for the outer border */
+         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        font-family: 'Arial', sans-serif;
+    }
+
+    .add-user-header {
+        text-align: center;
+        margin-bottom: 20px;
+    }
+
+        .add-user-header h3 {
+            font-size: 24px;
+            color: #6644FA;
+            margin: 0;
+        }
+
+    .add-user-form {
+        display: flex;
+        flex-direction: column;
+    }
+
+        /* Apply margin-bottom: 10px to each form section (excluding the button) */
+        .add-user-form div:not(:last-child) {
+            margin-bottom: 10px;
+        }
+
+        .add-user-form label {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .add-user-form input {
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            width: 100%;
+        }
+
+            .add-user-form input:focus {
+                border-color: #6a1b9a;
+                outline: none;
+                box-shadow: 0 0 4px rgba(106, 27, 154, 0.5);
+            }
+
+        .add-user-form button {
+            background-color: #6644FA;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            padding: 10px 15px;
+            font-size: 16px;
+            cursor: pointer;
+            /* Center the button horizontally using margin: 0 auto */
+            margin: 0 auto;
+            /* Add some spacing above and below the button (optional) */
+            margin-top: 15px;
+            margin-bottom: 15px;
+            display: flex;
+        }
+
+            .add-user-form button:hover {
+                background-color: #4a148c;
+            }
+
+    .error-message {
+        color: red;
+        text-align: center;
+        margin-top: 10px;
+    }
+
+    .user-details {
+        margin-top: 20px;
+        padding: 10px;
+        border: 1px solid #eaeaea;
+        border-radius: 5px;
+        background-color: #f9f9f9;
+    }
+
+        .user-details h4 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+
+        .user-details p {
+            margin: 5px 0;
+            font-size: 16px;
+        }
+
+    /* Styles for the new p tag */
+    .sign-in-text {
+        text-align: center;
+        margin-top: 10px; /* Add some margin for spacing */
+    }
+
+        .sign-in-text a {
+            color: #6644FA; /* Match the color of the register header */
+            text-decoration: none; /* Remove underline from the link */
+        }
+</style>
+
+<div class="add-user-container">
+    <div class="add-user-header">
+        <h3>Register</h3>
+    </div>
+    <p class="sign-in-text">Already have an account? <a href="/">Login Now</a></p>
+
+    <div class="add-user-form">
+        <form
+            <div>
+                <label>Name:</label>
+                <input type="text" placeholder="Name" @bind="newUser.Name" />
+            </div>
+            <div>
+                <label>User Name:</label>
+                <input type="text" placeholder="Username" @bind="newUser.UserName" />
+            </div>
+            <div>
+                <label>Password:</label>
+                <input type="password" placeholder="Password" @bind="newUser.Password" />
+            </div>
+            <div>
+                <label>Currency:</label>
+                <select class="form-control" @bind="newUser.Currency">
+                    <option value="₨">NPR(₨)</option>
+                    <option value="₹">INR(₹)</option>
+                    <option value="$">USD($)</option>
+                    <option value="£">GBP(£)</option>
+                    <option value="¥">CNY(¥)</option>
+                    <option value="€">EUR(€)</option>
+                    <option value="¥">JPY(¥)</option>
+                    <option value="A$">AUD(A$)</option>
+                    <option value="C$">CAD(C$)</option>
+                    <option value="Fr">CHF(Fr)</option>
+                    <option value="kr">SEK(kr)</option>
+                    <option value="NZ$">NZD(NZ$)</option>
+                    <option value="Mex$">MXN(Mex$)</option>
+                    <option value="S$">SGD(S$)</option>
+                    <option value="HK$">HKD(HK$)</option>
+                    <option value="₩">KRW(₩)</option>
+                    <option value="R">ZAR(R)</option>
+                    <option value="₺">TRY(₺)</option>
+                    <option value="R$">BRL(R$)</option>
+                    <option value="฿">THB(฿)</option>
+                    <option value="₪">ILS(₪)</option>
+                    <option value="Rp">IDR(Rp)</option>
+                    <option value="RM">MYR(RM)</option>
+                    <option value="₱">PHP(₱)</option>
+                    <option value="zł">PLN(zł)</option>
+                    <option value="kr">NOK(kr)</option>
+
+                </select>
+            </div>
+            <button type="button" @onclick="AddNewUser">Sign Up</button>
+        </form>
+    </div>
+
+    @if (errorMessage != null)
+    {
+        <p class="error-message">@errorMessage</p>
+    }
+
+    @if (retrievedUser != null)
+    {
+        <div class="user-details">
+            <h4>User Details:</h4>
+            <p><strong>Name:</strong> @retrievedUser.UserName</p>
+            <p><strong>Currency:</strong> @retrievedUser.Currency</p>
+        </div>
+    }
+</div>
+
+@code {
+    private User newUser = new User(); // Object for User class
+    private string errorMessage;
+
+    // Field for searching user
+    private int searchUserId;
+
+    // Field to hold retrieved user information
+    private User retrievedUser;
+
+    private async Task AddNewUser()
+    {
+        try
+        {
+            await userService.SaveUserAsync(newUser);
+            // Reset the new user object after saving.
+            newUser = new User();
+            errorMessage = null; // Clear any previous error messages
+            navigationManager.NavigateTo("/");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred while adding the user: {ex.Message}";
+        }
+    }
+
+    private async Task GetUserInfo()
+    {
+        try
+        {
+            var users = await userService.LoadUsersAsync();
+            retrievedUser = users.FirstOrDefault(u => u.UserName == searchUserId.ToString());
+
+            if (retrievedUser == null)
+            {
+                errorMessage = "No user found with this username.";
+            }
+            else
+            {
+                errorMessage = null; // Clear any previous error messages
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred while retrieving the user: {ex.Message}";
+            Console.WriteLine(errorMessage); // Log for debugging
+        }
+    }
+}
+}

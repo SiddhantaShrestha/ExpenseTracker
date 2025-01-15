@@ -1,0 +1,334 @@
+﻿@page "/dashboard"
+@using MudBlazor
+@using Coursework.Models
+@using Coursework.Services
+@inject IDashboardService dashboardService
+@inject IUserService userService
+@inject AuthenticationStateService authStateService
+
+<style>
+    .dashboard-card {
+        border-radius: 10px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+
+    .dashboard-header {
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .chart-container {
+        height: 300px;
+    }
+
+    .transaction-list {
+        margin-top: 20px;
+    }
+
+    .transaction-header,
+    .transaction-item {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        justify-items: center;
+        align-items: center;
+        font-size: 0.9rem;
+        padding: 10px 0;
+        border-bottom: 1px solid #eee;
+    }
+
+    .transaction-header {
+        font-weight: bold;
+        border-bottom: 2px solid #ccc;
+        background-color: #f9f9f9;
+    }
+
+    .transaction-item {
+        transition: background-color 0.3s;
+    }
+
+        .transaction-item:hover {
+            background-color: #f1f1f1;
+        }
+
+    .clickable {
+        cursor: pointer;
+        user-select: none;
+    }
+
+        .clickable:hover {
+            color: #6644FA;
+        }
+
+    .dashboard-card h5 {
+        font-size: 1.2rem;
+    }
+
+    .dashboard-card h2 {
+        font-size: 2rem;
+        font-weight: bold;
+    }
+
+    .col-md-4 {
+        display: flex;
+        justify-content: center;
+    }
+
+    .dashboard-card.bg-success {
+        background-color: #28a745;
+    }
+
+    .dashboard-card.bg-danger {
+        background-color: #dc3545;
+    }
+
+    .dashboard-card.bg-warning {
+        background-color: #ffc107;
+    }
+</style>
+
+@if (authStateService.IsAuthenticated())
+{
+    <div class="container mt-4">
+        <!-- Display username -->
+        <h1>Welcome, @authStateService.GetAuthenticatedUser()?.UserName!</h1>
+
+        <div class="row">
+            <div class="col-md-4">
+                <div class="dashboard-card bg-success text-white text-center">
+                    <h5>Available Balance</h5>
+                    <h2>@($"{authStateService.GetUserCurrency()}{availableBalance}")</h2>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="dashboard-card bg-success text-white text-center">
+                    <h5>Total Inflows</h5>
+                    <h2>@($"{authStateService.GetUserCurrency()}{totalIncome}")</h2>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="dashboard-card bg-danger text-white text-center">
+                    <h5>Total Outflows</h5>
+                    <h2>@($"{authStateService.GetUserCurrency()}{totalExpense}")</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-4">
+                <div class="dashboard-card bg-info text-white text-center">
+                    <h5>Remaining Debt</h5>
+                    <h2>@($"{authStateService.GetUserCurrency()}{remainingDebt}")</h2>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="dashboard-card bg-secondary text-white text-center">
+                    <h5>Original Debt</h5>
+                    <h2>@($"{authStateService.GetUserCurrency()}{originalDebt}")</h2>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="dashboard-card bg-primary text-white text-center">
+                    <h5>Cleared Debt</h5>
+                    <h2>@($"{authStateService.GetUserCurrency()}{clearedDebt}")</h2>
+                </div>
+            </div>
+        </div>
+       
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="dashboard-card">
+                    <h5>Financial Overview</h5>
+                    <div class="chart-container">
+                        <MudChart ChartType="ChartType.Pie"
+                                  Width="100%"
+                                  Height="200px"
+                                  InputData="@chartData"
+                                  InputLabels="@chartLabels"
+                                  ChartOptions="@options" />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-12">
+                <div class="dashboard-card">
+                    <h5>Transactions</h5>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="fromDate">From:</label>
+                            <input type="date" id="fromDate" class="form-control" @bind="fromDate" @bind:after="OnDateRangeChanged" />
+                        </div>
+                        <div class="col-md-6">
+                            <label for="toDate">To:</label>
+                            <input type="date" id="toDate" class="form-control" @bind="toDate" @bind:after="OnDateRangeChanged" />
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="tagFilter">Tag:</label>
+                            <select id="tagFilter" class="form-control" @bind="tagFilter" @bind:after="OnFiltersChanged">
+                                <option value="">All</option>
+                                @foreach (var tag in tagOptions)
+                                {
+                                    <option value="@tag">@tag</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="typeFilter">Type:</label>
+                            <select id="typeFilter" class="form-control" @bind="typeFilter" @bind:after="OnFiltersChanged">
+                                <option value="">All</option>
+                                <option value="Income">Income</option>
+                                <option value="Expense">Expense</option>
+                                <option value="Debt">Debt</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Top 5 Transactions</h6>
+                            <div class="transaction-list">
+                                <div class="transaction-header">
+                                    <span>Title</span>
+                                    <span>Date</span>
+                                    <span>Amount</span>
+                                    <span>Type</span>
+                                    <span>Tags</span>
+                                </div>
+
+                                @foreach (var transaction in TopTransactions)
+                                {
+                                    <div class="transaction-item">
+                                        <span>@transaction.Description</span>
+                                        <span>@transaction.Date.ToString("yyyy-MM-dd")</span>
+                                        <span>@($"{authStateService.GetUserCurrency()}{transaction.Amount}")</span>
+                                        <span class="@(transaction.Type == "Income" ? "text-success" : "text-danger")">@transaction.Type</span>
+                                        <span>@transaction.Tags</span>
+                                    </div>
+
+                                }
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <h6>Bottom 5 Transactions</h6>
+                            <div class="transaction-list">
+                                <div class="transaction-header">
+                                    <span>Title</span>
+                                    <span>Date</span>
+                                    <span>Amount</span>
+                                    <span>Type</span>
+                                    <span>Tags</span>
+                                </div>
+
+                                @foreach (var transaction in BottomTransactions)
+                                {
+                                    <div class="transaction-item">
+                                        <span>@transaction.Description</span>
+                                        <span>@transaction.Date.ToString("yyyy-MM-dd")</span>
+                                        <span>@($"{authStateService.GetUserCurrency()}{transaction.Amount}")</span>
+                                        <span class="@(transaction.Type == "Income" ? "text-success" : "text-danger")">@transaction.Type</span>
+                                        <span>@transaction.Tags</span>
+                                    </div>
+
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+       
+
+
+    </div>
+}
+
+@code {
+    private decimal totalIncome;
+    private decimal totalExpense;
+    private decimal availableBalance;
+    private decimal remainingDebt;
+    private decimal originalDebt;
+    private decimal clearedDebt;
+    private List<string> tagOptions = new List<string> { "Fuel", "Rent", "Groceries", "Custom" };
+    private string tagFilter = string.Empty;
+    private string typeFilter = string.Empty;
+    private DateTime? fromDate;
+    private DateTime? toDate;
+
+
+
+ 
+    protected override async Task OnInitializedAsync()
+    {
+        await UpdateFilteredTransactions();
+        await CalculateTotals();
+    }
+
+    private IEnumerable<Transaction> TopTransactions => _filteredTransactions
+        .OrderByDescending(t => t.Amount)
+        .Take(5);
+
+    private IEnumerable<Transaction> BottomTransactions => _filteredTransactions
+        .OrderBy(t => t.Amount)
+        .Take(5);
+
+    private IEnumerable<Transaction> _filteredTransactions = new List<Transaction>();
+
+    private async Task UpdateFilteredTransactions()
+    {
+        _filteredTransactions = await dashboardService.GetFilteredTransactions(fromDate, toDate, tagFilter, typeFilter);
+        StateHasChanged();
+    }
+
+
+
+    private async Task OnDateRangeChanged()
+    {
+        await UpdateFilteredTransactions();
+        await CalculateTotals();
+    }
+
+    private async Task OnFiltersChanged()
+    {
+        await UpdateFilteredTransactions();
+    }
+
+    private async Task CalculateTotals()
+    {
+        totalIncome = await dashboardService.CalculateTotal("Income");
+        totalExpense = await dashboardService.CalculateTotal("Expense");
+        remainingDebt = await dashboardService.CalculateRemainingDebt();
+        originalDebt = await dashboardService.CalculateOriginalDebt();
+        clearedDebt = await dashboardService.CalculateClearedDebt();
+        availableBalance = await dashboardService.CalculateAvailableBalance();
+    }
+
+    private double[] chartData => new[] {
+        Convert.ToDouble(totalIncome),
+        Convert.ToDouble(totalExpense),
+        Convert.ToDouble(remainingDebt)
+    };
+
+    private string[] chartLabels => new[] {
+        $"Available Funds ({authStateService.GetUserCurrency()}{totalIncome})",
+        $"Total Outflow ({authStateService.GetUserCurrency()}{totalExpense})",
+        $"Remaining Debt ({authStateService.GetUserCurrency()}{remainingDebt})"
+    };
+
+    private ChartOptions options = new ChartOptions
+        {
+            ChartPalette = new[] { "#28a745", "#dc3545", "#17a2b8" }
+        };
+
+
+ 
+}

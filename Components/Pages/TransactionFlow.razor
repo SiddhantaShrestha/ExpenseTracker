@@ -1,0 +1,138 @@
+﻿@page "/transaction-flow"
+@using MudBlazor
+@using Coursework.Models
+@using Coursework.Services
+@inject ITransactionService transactionService
+@inject AuthenticationStateService authStateService
+@inject NavigationManager navigationManager
+
+
+@if (authStateService.IsAuthenticated())
+{
+    <div class="container mt-4">
+        <h3>Add Transaction (Inflow/Outflow)</h3>
+        <form>
+            <div class="mb-3">
+                <label for="description" class="form-label">Description</label>
+                <input id="description" type="text" class="form-control" @bind="newTransaction.Description" />
+            </div>
+
+            <div class="mb-3">
+                <label for="date" class="form-label">Date</label>
+                <input id="date" type="date" class="form-control" @bind="newTransaction.Date" />
+            </div>
+
+            <div class="mb-3">
+                <label for="amount" class="form-label">Amount</label>
+                <input id="amount" type="number" class="form-control" @bind="newTransaction.Amount" />
+            </div>
+
+            <div class="mb-3">
+                <label for="type" class="form-label">Type</label>
+                <select id="type" class="form-control" @bind="newTransaction.Type">
+                    <option value=""></option>
+                    <option value="Income">Income</option>
+                    <option value="Expense">Expense</option>
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label for="tags" class="form-label">Tags</label>
+                <select id="tags" class="form-control" @bind="selectedTag">
+                    @foreach (var tag in tagOptions)
+                    {
+                        <option value="@tag">@tag</option>
+                    }
+                    <option value="Custom">Custom</option>
+                </select>
+            </div>
+
+            @if (selectedTag == "Custom")
+            {
+                <div class="mb-3">
+                    <label for="customTag" class="form-label">Enter Custom Tag</label>
+                    <input id="customTag" type="text" class="form-control" @bind="newTransaction.Tags" />
+                </div>
+            }
+
+            <div class="mb-3">
+                <label for="notes" class="form-label">Notes</label>
+                <textarea id="notes" class="form-control" @bind="newTransaction.Labels" placeholder="Enter any additional notes (optional)"></textarea>
+            </div>
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger">@errorMessage</div>
+            }
+
+            <button type="button" class="btn btn-primary" @onclick="SubmitForm">Add Transaction</button>
+            <button type="button" class="btn btn-secondary" @onclick="Cancel">Cancel</button>
+        </form>
+    </div>
+}
+
+@code {
+    private Transaction newTransaction = new Transaction { Date = DateTime.Now };
+    private string errorMessage;
+
+    // List of predefined tags to choose from
+    private List<string> tagOptions = new List<string> { "Fuel",
+    "Rent",
+    "Groceries",
+    "Utilities",
+    "Dining",
+    "Entertainment",
+    "Health",
+    "Travel",
+    "Shopping",
+    "Insurance",
+    "Education",
+    "Savings",
+    "Investment",
+    "Debt Payment",
+    "Salary",
+    "Bonus",
+    "Gifts",
+    "Charity",
+    "Taxes",
+    "Subscriptions"};
+    private string selectedTag;
+
+    private async Task SubmitForm()
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(newTransaction.Description))
+            {
+                errorMessage = "Description cannot be empty.";
+                return;
+            }
+
+            // If Custom is selected, use the custom tag entered by the user
+            if (selectedTag == "Custom" && string.IsNullOrWhiteSpace(newTransaction.Tags))
+            {
+                errorMessage = "Please provide a custom tag.";
+                return;
+            }
+
+            // If Custom is not selected, use the selected tag from the dropdown
+            if (selectedTag != "Custom")
+            {
+                newTransaction.Tags = selectedTag;
+            }
+
+            await transactionService.AddTransactionAsync(newTransaction);
+
+            navigationManager.NavigateTo("/transactions");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred: {ex.Message}";
+        }
+    }
+
+    private void Cancel()
+    {
+        navigationManager.NavigateTo("/transactions");
+    }
+}

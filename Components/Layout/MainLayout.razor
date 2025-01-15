@@ -1,0 +1,53 @@
+﻿@inherits LayoutComponentBase
+@using Coursework.Services
+@inject AuthenticationStateService authStateService
+@inject NavigationManager navigationManager
+
+<MudThemeProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar>
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="DrawerToggle" />
+        Expense Tracker Application
+
+        @if (authStateService.IsAuthenticated() && navigationManager.Uri.ToString() != navigationManager.ToAbsoluteUri("/").ToString())
+        {
+            <MudSpacer />
+            <MudButton Color="Color.Inherit" OnClick="SignOut">Sign Out</MudButton>
+        }
+        else if (!authStateService.IsAuthenticated() && navigationManager.Uri.ToString() != navigationManager.ToAbsoluteUri("/").ToString())
+        {
+            <MudSpacer />
+            <MudButton Color="Color.Inherit" OnClick="NavigateToLogin">Login</MudButton>
+        }
+    </MudAppBar>
+
+    <MudDrawer @bind-Open="@_drawerOpen">
+        <NavMenu />
+    </MudDrawer>
+    <MudMainContent>
+        @Body
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    bool _drawerOpen = true;
+
+    void DrawerToggle()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+
+    private void SignOut()
+    {
+        authStateService.Logout();
+        navigationManager.NavigateTo("/"); // Navigate to login page after sign out
+    }
+
+    private void NavigateToLogin()
+    {
+        navigationManager.NavigateTo("/"); // Navigate to login page
+    }
+}

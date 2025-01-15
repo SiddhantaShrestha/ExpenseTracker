@@ -1,0 +1,162 @@
+﻿@page "/"
+@using Coursework.Models
+@using Coursework.Services
+@inject IUserService userService
+@inject NavigationManager navigationManager
+@inject AuthenticationStateService authStateService
+
+<style>
+    /* Login Form Styles */
+    .login-container {
+        width: 500px; /* Matching the width of the registration container */
+        margin: 50px auto;
+        padding: 20px;
+        background-color: #fff;
+        border-radius: 10px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        font-family: 'Arial', sans-serif;
+    }
+
+    .login-header {
+        text-align: center;
+        margin-bottom: 20px;
+    }
+
+        .login-header h3 {
+            font-size: 24px;
+            color: #6644FA;
+            margin: 0;
+        }
+
+    .login-form {
+        display: flex;
+        flex-direction: column;
+    }
+
+        /* Consistent spacing between input fields */
+        .login-form div:not(:last-child) {
+            margin-bottom: 15px;
+        }
+
+        .login-form label {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .login-form input {
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            width: 100%; /* Match the width to the registration input fields */
+        }
+
+            .login-form input:focus {
+                border-color: #6a1b9a;
+                outline: none;
+                box-shadow: 0 0 4px rgba(106, 27, 154, 0.5);
+            }
+
+        .login-form button {
+            background-color: #6644FA;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            padding: 10px 15px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 0 auto; /* Center the button horizontally */
+            margin-top: 15px; /* Add spacing above the button */
+            display: flex;
+            justify-content: center;
+            width: 100%; /* Ensure the button spans the same width as input fields */
+        }
+
+            .login-form button:hover {
+                background-color: #4a148c;
+            }
+
+    .error-message {
+        color: red;
+        text-align: center;
+        margin-top: 10px;
+    }
+
+    .sign-up-text {
+        text-align: center;
+        margin-top: 10px; /* Add spacing above the text */
+    }
+
+        .sign-up-text a {
+            color: #6644FA;
+            text-decoration: none;
+        }
+</style>
+
+<div class="login-container">
+    <div class="login-header">
+        <h3>Login</h3>
+    </div>
+
+    <div class="login-form">
+        <form>
+            <div>
+                <label>Username:</label>
+                <input type="text" placeholder="Enter your username" @bind="username" />
+            </div>
+            <div>
+                <label>Password:</label>
+                <input type="password" placeholder="Enter your password" @bind="password" />
+            </div>
+            <button type="button" @onclick="LoginUser">Login</button>
+        </form>
+    </div>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <p class="error-message">@errorMessage</p>
+    }
+
+    <p class="sign-up-text">
+        Don't have an account? <a href="/register">Sign Up</a>
+    </p>
+</div>
+
+@code {
+    private string username;
+    private string password;
+    private string errorMessage;
+
+    private async Task LoginUser()
+    {
+        try
+        {
+            var users = await userService.LoadUsersAsync();
+            var user = users.FirstOrDefault(u => u.UserName == username && u.Password == HashPassword(password));
+
+            if (user != null)
+            {
+                authStateService.SetAuthenticatedUser(user);
+                navigationManager.NavigateTo("/dashboard");
+            }
+            else
+            {
+                errorMessage = "Invalid username or password.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred during login: {ex.Message}";
+        }
+    }
+
+    private string HashPassword(string password)
+    {
+        using (var sha256 = System.Security.Cryptography.SHA256.Create())
+        {
+            var bytes = System.Text.Encoding.UTF8.GetBytes(password);
+            var hash = sha256.ComputeHash(bytes);
+            return Convert.ToBase64String(hash);
+        }
+    }
+}

@@ -1,0 +1,16 @@
+﻿@using MudBlazor
+@using Coursework.Models
+@using Coursework.Services
+@inject AuthenticationStateService authStateService
+
+<MudNavMenu>
+    @if (!authStateService.IsAuthenticated())
+    {
+        <MudNavLink Href="/" Match="NavLinkMatch.All">Login</MudNavLink>
+        <MudNavLink Href="/register" Match="NavLinkMatch.All">Register</MudNavLink>
+    }
+    <MudNavLink Href="/dashboard" Match="NavLinkMatch.All">Dashboard</MudNavLink>
+    <MudNavLink Href="/transactions" Match="NavLinkMatch.All">Transactions</MudNavLink>
+    <MudNavLink Href="/transaction-flow" Match="NavLinkMatch.All">Transaction Form</MudNavLink>
+    <MudNavLink Href="/add-debt" Match="NavLinkMatch.All">Debt Form</MudNavLink>
+</MudNavMenu>

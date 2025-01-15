@@ -1,0 +1,125 @@
+﻿@page "/add-debt"
+@using MudBlazor
+@using Coursework.Models
+@using Coursework.Services
+@inject IDebtService debtService
+@inject NavigationManager navigationManager
+@inject AuthenticationStateService authStateService
+
+@if (authStateService.IsAuthenticated())
+{
+    <div class="container mt-4">
+        <h3>Add New Debt</h3>
+        <form>
+            <div class="mb-3">
+                <label for="description" class="form-label">Description</label>
+                <input id="description" type="text" class="form-control" @bind="newDebt.Description" />
+            </div>
+
+            <div class="mb-3">
+                <label for="date" class="form-label">Date</label>
+                <input id="date" type="date" class="form-control" @bind="newDebt.Date" />
+            </div>
+
+            <div class="mb-3">
+                <label for="amount" class="form-label">Amount</label>
+                <input id="amount" type="number" step="0.01" min="0.01" class="form-control" @bind="newDebt.Amount" />
+            </div>
+
+            <div class="mb-3">
+                <label for="dueDate" class="form-label">Due Date (Optional)</label>
+                <input id="dueDate" type="date" class="form-control" @bind="newDebt.DueDate" />
+            </div>
+
+            <!-- Tags Dropdown -->
+            <div class="mb-3">
+                <label for="tags" class="form-label">Source</label>
+                <select id="tags" class="form-control" @bind="selectedTag">
+                    @foreach (var tag in tagOptions)
+                    {
+                        <option value="@tag">@tag</option>
+                    }
+                    <option value="Custom">Custom</option>
+                </select>
+            </div>
+
+            @if (selectedTag == "Custom")
+            {
+                <div class="mb-3">
+                    <label for="customTag" class="form-label">Enter Custom Source</label>
+                    <input id="customTag" type="text" class="form-control" @bind="newDebt.Source" />
+                </div>
+            }
+
+            <div class="mb-3">
+                <label for="notes" class="form-label">Notes</label>
+                <textarea id="notes" class="form-control" @bind="newDebt.Labels" placeholder="Enter any additional notes (optional)"></textarea>
+            </div>
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger">@errorMessage</div>
+            }
+
+            <button type="button" class="btn btn-primary" @onclick="SubmitDebtForm">Add Debt</button>
+            <button type="button" class="btn btn-secondary" @onclick="Cancel">Cancel</button>
+        </form>
+    </div>
+}
+
+@code {
+    private Debt newDebt = new Debt { Date = DateTime.Now };
+    private string errorMessage;
+    private List<string> tagOptions = new List<string> { "Loan", "Credit", "Mortgage" };
+    private string selectedTag;
+
+    private async Task SubmitDebtForm()
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(newDebt.Description))
+            {
+                errorMessage = "Description cannot be empty.";
+                return;
+            }
+
+            if (newDebt.Amount <= 0)
+            {
+                errorMessage = "Amount must be greater than 0.";
+                return;
+            }
+
+            // If Custom is selected, validate custom tag
+            if (selectedTag == "Custom" && string.IsNullOrWhiteSpace(newDebt.Source))
+            {
+                errorMessage = "Please provide a custom source.";
+                return;
+            }
+
+            // If Custom is not selected, use the selected tag from the dropdown
+            if (selectedTag != "Custom")
+            {
+                newDebt.Source = selectedTag;
+            }
+
+            // Set initial status
+            newDebt.Status = "Pending";
+            newDebt.AmountPaid = 0;
+
+            // Add the debt using DebtService
+            await debtService.AddDebtAsync(newDebt);
+
+            // Navigate to transactions page after successful addition
+            navigationManager.NavigateTo("/transactions");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred: {ex.Message}";
+        }
+    }
+
+    private void Cancel()
+    {
+        navigationManager.NavigateTo("/transactions");
+    }
+}
