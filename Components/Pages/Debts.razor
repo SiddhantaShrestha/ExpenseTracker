@@ -1,0 +1,132 @@
+﻿@page "/debtsDisplay"
+@using Coursework.Models
+@using Coursework.Services
+@inject IDebtService DebtService
+@inject NavigationManager NavigationManager
+
+<div class="container mt-4">
+    <h1 class="mb-4">Debts Overview</h1>
+
+    @if (_loading)
+    {
+            <div class="d-flex justify-content-center align-items-center">
+                <div class="spinner-border text-primary" role="status"></div>
+            </div>
+    }
+    else if (_debts == null || !_debts.Any())
+    {
+            <div class="text-center py-4">
+                <p class="text-muted">No debts found.</p>
+            </div>
+    }
+    else
+    {
+            <div class="table-responsive">
+                <table class="table table-striped table-bordered">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Description</th>
+                            <th>Total Amount</th>
+                            <th>Amount Paid</th>
+                            <th>Remaining</th>
+                            <th>Due Date</th>
+                            <th>Status</th>
+                            <th>Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var debt in _debts)
+                    {
+                                <tr>
+                                    <td>@debt.Description</td>
+                                    <td>@debt.Amount.ToString("C")</td>
+                                    <td class="text-success">@debt.AmountPaid.ToString("C")</td>
+                                    <td class="text-primary">@debt.RemainingAmount.ToString("C")</td>
+                                    <td>@(debt.DueDate?.ToShortDateString() ?? "Not set")</td>
+                                    <td>
+                                @if (debt.AmountPaid == 0)
+                                {
+                                                <span class="badge bg-warning text-dark">Pending</span>
+                                }
+                                else if (debt.RemainingAmount > 0)
+                                {
+                                                <span class="badge bg-info text-dark">In Progress</span>
+                                }
+                                else
+                                {
+                                                <span class="badge bg-success">Paid</span>
+                                }
+                                    </td>
+                                    <td>
+                                @if (!string.IsNullOrEmpty(debt.Labels))
+                                {
+                                    @debt.Labels
+                                }
+                                else
+                                {
+                                                <span class="text-muted fst-italic">No notes</span>
+                                }
+                                    </td>
+                                </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="row mt-4">
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <p class="text-muted">Total Debt</p>
+                            <h5 class="card-title">@_totalDebt.ToString("C")</h5>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <p class="text-muted">Total Paid</p>
+                            <h5 class="card-title text-success">@_totalPaid.ToString("C")</h5>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <p class="text-muted">Remaining</p>
+                            <h5 class="card-title text-primary">@_remainingDebt.ToString("C")</h5>
+                        </div>
+                    </div>
+                </div>
+            </div>
+    }
+</div>
+
+@code {
+    private IEnumerable<Debt> _debts;
+    private bool _loading = true;
+    private decimal _totalDebt;
+    private decimal _totalPaid;
+    private decimal _remainingDebt;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            _loading = true;
+            _debts = await DebtService.GetAllDebtsAsync();
+            _totalDebt = await DebtService.GetTotalDebtAsync();
+            _totalPaid = await DebtService.GetTotalPaidDebtAsync();
+            _remainingDebt = await DebtService.GetRemainingDebtAsync();
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}

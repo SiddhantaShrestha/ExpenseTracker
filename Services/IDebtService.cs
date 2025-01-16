@@ -18,6 +18,7 @@ namespace Coursework.Services
         Task SaveDebtsAsync(List<Debt> debts);
         Task<List<Debt>> LoadDebtsAsync();
 
+        Task<string> ValidateDebtAsync(Debt debt, string selectedTag);
 
         // New method to get pending debts
         Task<IEnumerable<Debt>> GetPendingDebtsAsync();

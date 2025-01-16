@@ -13,8 +13,8 @@
     .dashboard-card {
         border-radius: 10px;
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        padding: 20px;
-        margin-bottom: 20px;
+        padding: 15px;
+        margin-bottom: 10px;
     }
 
     .dashboard-header {
@@ -30,6 +30,10 @@
         margin-top: 20px;
     }
 
+    .row {
+        margin-right: 0;
+        margin-left: 0;
+    }
     /* General styles for Top 5 and Bottom 5 Transactions (unchanged) */
     .transaction-header,
     .transaction-item {
@@ -74,9 +78,9 @@
         font-weight: bold;
     }
 
-    .col-md-4 {
-        display: flex;
-        justify-content: center;
+    .col-md-8, .col-md-4 {
+        padding-right: 10px;
+        padding-left: 10px;
     }
 
     .dashboard-card.bg-success {
@@ -135,98 +139,107 @@
         <!-- Display username -->
         <h1>Welcome, @authStateService.GetAuthenticatedUser()?.UserName!</h1>
 
-        <div class="row">
-            <div class="col-md-4">
-                <div class="dashboard-card bg-success text-white text-center">
-                    <h5>Available Balance</h5>
-                    <h2>@($"{authStateService.GetUserCurrency()}{availableBalance}")</h2>
+        <div class="row align-items-start">
+    <!-- Left Column: Summary Cards -->
+            <div class="col-md-8">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="card">
+                            <div class="card-body text-center">
+                                <p class="text-muted">Available Balance</p>
+                                <h5 class="card-title">@($"{authStateService.GetUserCurrency()}{availableBalance}")</h5>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card">
+                            <div class="card-body text-center">
+                                <p class="text-muted">Total Inflows</p>
+                                <h5 class="card-title">@($"{authStateService.GetUserCurrency()}{totalIncome}")</h5>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card">
+                            <div class="card-body text-center">
+                                <p class="text-muted">Total Outflows</p>
+                                <h5 class="card-title">@($"{authStateService.GetUserCurrency()}{totalExpense}")</h5>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="col-md-4">
-                <div class="dashboard-card bg-success text-white text-center">
-                    <h5>Total Inflows</h5>
-                    <h2>@($"{authStateService.GetUserCurrency()}{totalIncome}")</h2>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="dashboard-card bg-danger text-white text-center">
-                    <h5>Total Outflows</h5>
-                    <h2>@($"{authStateService.GetUserCurrency()}{totalExpense}")</h2>
-                </div>
-            </div>
-        </div>
-
-        <div class="row">
-            <div class="col-md-4">
-                <div class="dashboard-card bg-info text-white text-center">
-                    <h5>Remaining Debt</h5>
-                    <h2>@($"{authStateService.GetUserCurrency()}{remainingDebt}")</h2>
-                </div>
-            </div>
-
-            <div class="col-md-4">
-                <div class="dashboard-card bg-secondary text-white text-center">
-                    <h5>Original Debt</h5>
-                    <h2>@($"{authStateService.GetUserCurrency()}{originalDebt}")</h2>
-                </div>
-            </div>
-
-            <div class="col-md-4">
-                <div class="dashboard-card bg-primary text-white text-center">
-                    <h5>Cleared Debt</h5>
-                    <h2>@($"{authStateService.GetUserCurrency()}{clearedDebt}")</h2>
-                </div>
-            </div>
-
-        </div>
-       
-
-        <div class="row">
-            <div class="col-md-6">
-                <div class="dashboard-card">
-                    <h5>Financial Overview</h5>
-                    <div class="chart-container">
-                        <MudChart ChartType="ChartType.Pie"
-                                  Width="100%"
-                                  Height="200px"
-                                  InputData="@chartData"
-                                  InputLabels="@chartLabels"
-                                  ChartOptions="@options" />
+                <div class="row mt-3">
+                    <div class="col-md-4">
+                        <div class="card">
+                            <div class="card-body text-center">
+                                <p class="text-muted">Remaining Debt</p>
+                                <h5 class="card-title text-primary">@($"{authStateService.GetUserCurrency()}{remainingDebt}")</h5>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card">
+                            <div class="card-body text-center">
+                                <p class="text-muted">Original Debt</p>
+                                <h5 class="card-title text-secondary">@($"{authStateService.GetUserCurrency()}{originalDebt}")</h5>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card">
+                            <div class="card-body text-center">
+                                <p class="text-muted">Cleared Debt</p>
+                                <h5 class="card-title text-success">@($"{authStateService.GetUserCurrency()}{clearedDebt}")</h5>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
+
+
+    <!-- Right Column: Pie Chart -->
+    <div class="col-md-4">
+        <div class="dashboard-card">
+            <h5>Financial Overview</h5>
+            <div class="chart-container">
+                <MudChart ChartType="ChartType.Pie"
+                          Width="90%"
+                          Height="200px"
+                          InputData="@chartData"
+                          InputLabels="@chartLabels"
+                          ChartOptions="@options" />
+            </div>
         </div>
+    </div>
+</div>
 
         <div class="row">
             <div class="col-md-12">
                 <div class="dashboard-card">
                     <h5>Transactions</h5>
 
-                    <div class="row mb-3">
-                        <div class="col-md-6">
+                    <!-- Filters Section -->
+                    <div class="row mb-3 align-items-end filters-row">
+                        <div class="col-md-3">
+                            <label for="titleSearch">Search by Title:</label>
+                            <input type="text" id="titleSearch" class="form-control filter-input" @bind="titleSearch" @bind:after="OnTitleSearchChanged" />
+                        </div>
+                        <div class="col-md-2">
                             <label for="fromDate">From:</label>
-                            <input type="date" id="fromDate" class="form-control" @bind="fromDate" @bind:after="OnDateRangeChanged" />
+                            <input type="date" id="fromDate" class="form-control filter-input" @bind="fromDate" @bind:after="OnDateRangeChanged" />
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-2">
                             <label for="toDate">To:</label>
-                            <input type="date" id="toDate" class="form-control" @bind="toDate" @bind:after="OnDateRangeChanged" />
+                            <input type="date" id="toDate" class="form-control filter-input" @bind="toDate" @bind:after="OnDateRangeChanged" />
                         </div>
-                    </div>
+                        <div class="col-md-2">
+                            <label for="tagSearch">Search by Tag:</label>
+                            <input type="text" id="tagSearch" class="form-control filter-input" @bind="tagFilter" @bind:after="OnFiltersChanged" />
+                        </div>
 
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="tagFilter">Tag:</label>
-                            <select id="tagFilter" class="form-control" @bind="tagFilter" @bind:after="OnFiltersChanged">
-                                <option value="">All</option>
-                                @foreach (var tag in tagOptions)
-                                {
-                                    <option value="@tag">@tag</option>
-                                }
-                            </select>
-                        </div>
-                        <div class="col-md-6">
+                        <div class="col-md-2">
                             <label for="typeFilter">Type:</label>
-                            <select id="typeFilter" class="form-control" @bind="typeFilter" @bind:after="OnFiltersChanged">
+                            <select id="typeFilter" class="form-control filter-input" @bind="typeFilter" @bind:after="OnFiltersChanged">
                                 <option value="">All</option>
                                 <option value="Income">Income</option>
                                 <option value="Expense">Expense</option>
@@ -234,6 +247,7 @@
                             </select>
                         </div>
                     </div>
+
 
                     <div class="row">
                         <div class="col-md-6">
@@ -292,34 +306,64 @@
                             <div class="dashboard-card">
                                 <h5>Pending Debts</h5>
 
-                                <div class="transaction-list pending-debt-list">
-                                    <div class="transaction-header">
-                                        <span>Title</span>
-                                        <span>Source</span>
-                                        <span>Amount</span>
-                                        <span>Date</span>
-                                        <span>Due Date</span>
-                                        <span>Status</span>
-                                        <span>Note</span>
-                                    </div>
-
-                                    @foreach (var debt in pendingDebts)
-                                    {
-                                        <div class="transaction-item">
-                                            <span>@debt.Description</span>
-                                            <span>@debt.Source</span>
-                                            <span>@($"{authStateService.GetUserCurrency()}{debt.Amount}")</span>
-                                            <span>@debt.Date.ToString("yyyy-MM-dd")</span>
-                                            <span>@debt.DueDate?.ToString("yyyy-MM-dd")</span>
-                                            <span class="@(debt.Status == "Pending" ? "text-warning" : "text-success")">@debt.Status</span>
-                                            <span>@debt.Labels</span>
-                                        </div>
-                                    }
+                                <!-- Pending Debts Table -->
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-bordered">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Description</th>
+                                                <th>Total Amount</th>
+                                                <th>Amount Paid</th>
+                                                <th>Remaining</th>
+                                                <th>Due Date</th>
+                                                <th>Status</th>
+                                                <th>Notes</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var debt in pendingDebts)
+                                            {
+                                                <tr>
+                                                    <td>@debt.Description</td>
+                                                    <td>@debt.Amount.ToString("C")</td>
+                                                    <td class="text-success">@debt.AmountPaid.ToString("C")</td>
+                                                    <td class="text-primary">@debt.RemainingAmount.ToString("C")</td>
+                                                    <td>@(debt.DueDate?.ToShortDateString() ?? "Not set")</td>
+                                                    <td>
+                                                        @if (debt.AmountPaid == 0)
+                                                        {
+                                                            <span class="badge bg-warning text-dark">Pending</span>
+                                                        }
+                                                        else if (debt.RemainingAmount > 0)
+                                                        {
+                                                            <span class="badge bg-info text-dark">In Progress</span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="badge bg-success">Paid</span>
+                                                        }
+                                                    </td>
+                                                    <td>
+                                                        @if (!string.IsNullOrEmpty(debt.Labels))
+                                                        {
+                                                            @debt.Labels
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="text-muted fst-italic">No notes</span>
+                                                        }
+                                                    </td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
                                 </div>
-                          
+
+                                
                             </div>
                         </div>
                     </div>
+
 
                 </div>
             </div>
@@ -342,6 +386,8 @@
     private string typeFilter = string.Empty;
     private DateTime? fromDate;
     private DateTime? toDate;
+    private string titleSearch = string.Empty;
+
 
 
 
@@ -364,22 +410,58 @@
 
 
     private IEnumerable<Transaction> TopTransactions => _filteredTransactions
-        .OrderByDescending(t => t.Amount)
-        .Take(5);
+        .OrderByDescending(t => Math.Abs(t.Amount))
+        .Take(5)
+        .Select(t => new Transaction
+            {
+                Description = t.Description,
+                Date = t.Date,
+                Amount = Math.Abs(t.Amount), // Convert to positive for display
+                Type = t.Type,
+                Tags = t.Tags
+            });
 
     private IEnumerable<Transaction> BottomTransactions => _filteredTransactions
-        .OrderBy(t => t.Amount)
-        .Take(5);
+        .OrderBy(t => Math.Abs(t.Amount))
+        .Take(5)
+        .Select(t => new Transaction
+            {
+                Description = t.Description,
+                Date = t.Date,
+                Amount = Math.Abs(t.Amount), // Convert to positive for display
+                Type = t.Type,
+                Tags = t.Tags
+            });
+
 
     private IEnumerable<Transaction> _filteredTransactions = new List<Transaction>();
 
     private async Task UpdateFilteredTransactions()
     {
+        // Get all filtered transactions from the service
         _filteredTransactions = await transactionService.GetFilteredTransactions(fromDate, toDate, tagFilter, typeFilter);
+
+        // Filter by title search if provided
+        if (!string.IsNullOrEmpty(titleSearch))
+        {
+            _filteredTransactions = _filteredTransactions.Where(t =>
+                t.Description.Contains(titleSearch, StringComparison.OrdinalIgnoreCase));
+        }
+
+        // Filter by tag search if provided
+        if (!string.IsNullOrEmpty(tagFilter))
+        {
+            _filteredTransactions = _filteredTransactions.Where(t =>
+                t.Tags.Contains(tagFilter, StringComparison.OrdinalIgnoreCase));
+        }
+
         StateHasChanged();
     }
 
-
+    private async Task OnTitleSearchChanged()
+    {
+        await UpdateFilteredTransactions();
+    }
 
     private async Task OnDateRangeChanged()
     {

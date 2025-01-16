@@ -4,6 +4,7 @@
 @inject AuthenticationStateService authStateService
 @implements IDisposable
 
+<h2><u>Exp-Tracker</u></h2>
 <MudNavMenu>
     @if (!authStateService.IsAuthenticated())
     {
@@ -18,6 +19,7 @@
         <MudNavLink Href="/transactions" Match="NavLinkMatch.All">Transactions</MudNavLink>
         <MudNavLink Href="/transaction-flow" Match="NavLinkMatch.All">Transaction Form</MudNavLink>
         <MudNavLink Href="/add-debt" Match="NavLinkMatch.All">Debt Form</MudNavLink>
+        <MudNavLink Href="/debtsDisplay" Match="NavLinkMatch.All">Debts</MudNavLink>
     }
 </MudNavMenu>
 

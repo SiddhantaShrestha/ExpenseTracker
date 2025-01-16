@@ -8,6 +8,60 @@
 @inject IDebtService debtService
 
 <style>
+    /* General card styles */
+.card {
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    padding: 15px;
+    margin-bottom: 15px;
+}
+
+/* For Highest Transaction Card */
+.highest-transaction-card {
+    border-left: 5px solid #17a2b8; /* Blue for Info */
+}
+
+.highest-transaction-card .card-body h5 {
+    color: #17a2b8; /* Blue */
+    font-weight: bold;
+}
+
+.highest-transaction-card .card-body p {
+    color: #495057; /* Dark text */
+    font-size: 14px;
+}
+
+.highest-transaction-card .card-body strong {
+    color: #007bff; /* Blue for strong labels */
+}
+
+/* For Lowest Transaction Card */
+.lowest-transaction-card {
+    border-left: 5px solid #ffc107; /* Yellow for Warning */
+}
+
+.lowest-transaction-card .card-body h5 {
+    color: #ffc107; /* Yellow */
+    font-weight: bold;
+}
+
+.lowest-transaction-card .card-body p {
+    color: #495057; /* Dark text */
+    font-size: 14px;
+}
+
+.lowest-transaction-card .card-body strong {
+    color: #e09e08; /* Dark yellow for strong labels */
+}
+
+/* Optional: Add some padding to make the card's content more comfortable */
+.card-body {
+    padding: 20px;
+}
+
+
     .dashboard-card {
     border-radius: 10px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
@@ -83,47 +137,83 @@
     .dashboard-card.bg-warning {
     background-color: #ffc107;
     }
+.filters-row {
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+
+    .filter-input {
+        font-size: 0.9rem;
+        padding: 5px;
+        width: 100%;
+    }
+
 </style>
 
 @if (authStateService.IsAuthenticated())
 {
     <div class="container mt-4">
         <div class="row">
-            <div class="col-md-4">
-                <div class="dashboard-card bg-success text-white text-center">
-                    <h5>Available Balance</h5>
-                    <h2>@($"{authStateService.GetUserCurrency()}{availableBalance}")</h2>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="dashboard-card bg-success text-white text-center">
-                    <h5>Total Number</h5>
-                    <h2>Transactions Done: @transactionCount</h2>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="dashboard-card bg-danger text-white text-center">
-                    <h5>Total transactions</h5>
-                    <h2>@($"{authStateService.GetUserCurrency()}{Math.Abs(totalTransactions)}" )</h2>
-                </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <p class="text-muted">Available Balance</p>
+                <h5 class="card-title">@($"{authStateService.GetUserCurrency()}{availableBalance}")</h5>
             </div>
         </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <p class="text-muted">Total Number</p>
+                <h5 class="card-title">Transactions Done: @transactionCount</h5>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <p class="text-muted">Total Transactions</p>
+                <h5 class="card-title text-danger">@($"{authStateService.GetUserCurrency()}{Math.Abs(totalTransactions)}")</h5>
+            </div>
+        </div>
+    </div>
+</div>
+
 
 
         <div class="row">
-            <div class="col-md-4">
-                <div class="dashboard-card bg-success text-white text-center">
-                    <h5>Highest Transaction</h5>
-                    <h2>@($"{authStateService.GetUserCurrency()}{highestTransaction}")</h2>
+            <div class="col-md-6">
+                <div class="card highest-transaction-card">
+                    <div class="card-body">
+                        <h5>Highest Transaction Details</h5>
+                        <p><strong>Title:</strong> @highestTransactionTitle</p>
+                        <p><strong>Amount:</strong> @($"{authStateService.GetUserCurrency()}{highestTransaction}")</p>
+                        <p><strong>Date:</strong> @highestTransactionDate.ToString("yyyy-MM-dd")</p>
+                        <p><strong>Type:</strong> @highestTransactionType</p>
+                        <p><strong>Tags/Source:</strong> @highestTransactionTags</p>
+                        <p><strong>Notes:</strong> @highestTransactionNotes</p>
+                    </div>
                 </div>
             </div>
-            <div class="col-md-4">
-                <div class="dashboard-card bg-danger text-white text-center">
-                    <h5>Lowest Transaction</h5>
-                    <h2>@($"{authStateService.GetUserCurrency()}{Math.Abs(lowestTransaction)}")</h2>
+            <div class="col-md-6">
+                <div class="card lowest-transaction-card">
+                    <div class="card-body">
+                        <h5>Lowest Transaction Details</h5>
+                        <p><strong>Title:</strong> @lowestTransactionTitle</p>
+                        <p><strong>Amount:</strong> @($"{authStateService.GetUserCurrency()}{lowestTransaction}")</p>
+                        <p><strong>Date:</strong> @lowestTransactionDate.ToString("yyyy-MM-dd")</p>
+                        <p><strong>Type:</strong> @lowestTransactionType</p>
+                        <p><strong>Tags/Source:</strong> @lowestTransactionTags</p>
+                        <p><strong>Notes:</strong> @lowestTransactionNotes</p>
+                    </div>
                 </div>
             </div>
         </div>
+
+
 
         @if (!string.IsNullOrEmpty(errorMessage))
         {
@@ -137,44 +227,33 @@
         </div>
 
 
-        <div class="row">
+         <div class="row">
             <div class="col-md-12">
                 <div class="dashboard-card">
                     <h5>Transactions</h5>
 
-                    <!-- Search bar for transaction title -->
-                    <div class="row mb-3">
-                        <div class="col-md-12">
+                    <!-- Filters Section -->
+                    <div class="row mb-3 align-items-end filters-row">
+                        <div class="col-md-3">
                             <label for="titleSearch">Search by Title:</label>
-                            <input type="text" id="titleSearch" class="form-control" @bind="titleSearch" @bind:after="OnTitleSearchChanged" />
+                            <input type="text" id="titleSearch" class="form-control filter-input" @bind="titleSearch" @bind:after="OnTitleSearchChanged" />
                         </div>
-                    </div>
-
-                    <div class="row mb-3">
-                        <div class="col-md-6">
+                        <div class="col-md-2">
                             <label for="fromDate">From:</label>
-                            <input type="date" id="fromDate" class="form-control" @bind="fromDate" @bind:after="OnDateRangeChanged" />
+                            <input type="date" id="fromDate" class="form-control filter-input" @bind="fromDate" @bind:after="OnDateRangeChanged" />
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-2">
                             <label for="toDate">To:</label>
-                            <input type="date" id="toDate" class="form-control" @bind="toDate" @bind:after="OnDateRangeChanged" />
+                            <input type="date" id="toDate" class="form-control filter-input" @bind="toDate" @bind:after="OnDateRangeChanged" />
                         </div>
-                    </div>
+                        <div class="col-md-2">
+                            <label for="tagSearch">Search by Tag:</label>
+                            <input type="text" id="tagSearch" class="form-control filter-input" @bind="tagFilter" @bind:after="OnFiltersChanged" />
+                        </div>
 
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="tagFilter">Tag:</label>
-                            <select id="tagFilter" class="form-control" @bind="tagFilter" @bind:after="OnFiltersChanged">
-                                <option value="">All</option>
-                                @foreach (var tag in tagOptions)
-                                {
-                                    <option value="@tag">@tag</option>
-                                }
-                            </select>
-                        </div>
-                        <div class="col-md-6">
+                        <div class="col-md-2">
                             <label for="typeFilter">Type:</label>
-                            <select id="typeFilter" class="form-control" @bind="typeFilter" @bind:after="OnFiltersChanged">
+                            <select id="typeFilter" class="form-control filter-input" @bind="typeFilter" @bind:after="OnFiltersChanged">
                                 <option value="">All</option>
                                 <option value="Income">Income</option>
                                 <option value="Expense">Expense</option>
@@ -182,6 +261,7 @@
                             </select>
                         </div>
                     </div>
+
 
                     <div class="transaction-list">
                         <div class="transaction-header">
@@ -256,6 +336,19 @@
     private decimal highestTransaction;
     private decimal lowestTransaction;
 
+    private string highestTransactionTitle;
+    private DateTime highestTransactionDate;
+    private string highestTransactionType;
+    private string highestTransactionTags;
+    private string highestTransactionNotes;
+
+
+    private string lowestTransactionTitle;
+    private DateTime lowestTransactionDate;
+    private string lowestTransactionType;
+    private string lowestTransactionTags;
+    private string lowestTransactionNotes;
+
 
     protected override async Task OnInitializedAsync()
     {
@@ -286,13 +379,26 @@
 
     private async Task UpdateFilteredTransactions()
     {
+        // Get all filtered transactions from the service
         _filteredTransactions = await transactionService.GetFilteredTransactions(fromDate, toDate, tagFilter, typeFilter);
+
+        // Filter by title search if provided
         if (!string.IsNullOrEmpty(titleSearch))
         {
-            _filteredTransactions = _filteredTransactions.Where(t => t.Description.Contains(titleSearch, StringComparison.OrdinalIgnoreCase));
+            _filteredTransactions = _filteredTransactions.Where(t =>
+                t.Description.Contains(titleSearch, StringComparison.OrdinalIgnoreCase));
         }
+
+        // Filter by tag search if provided
+        if (!string.IsNullOrEmpty(tagFilter))
+        {
+            _filteredTransactions = _filteredTransactions.Where(t =>
+                t.Tags.Contains(tagFilter, StringComparison.OrdinalIgnoreCase));
+        }
+
         StateHasChanged();
     }
+
 
     private async Task OnTitleSearchChanged()
     {
@@ -351,24 +457,50 @@
         clearedDebt = await debtService.GetTotalPaidDebtAsync();
         availableBalance = await transactionService.CalculateAvailableBalance();
 
-        // Calculate highest and lowest transactions
+        // Get all transactions for analysis
         var allTransactions = await transactionService.LoadUserTransactionsAsync();
+
         if (allTransactions.Any())
         {
-            highestTransaction = allTransactions
-                .Select(t => t.Type == "Debt" ? Math.Abs(t.Amount) : t.Amount) // Convert debt amount to positive
-                .Max();
+            var highest = allTransactions
+                .OrderByDescending(t => t.Type == "Debt" ? Math.Abs(t.Amount) : t.Amount)
+                .First();
+            highestTransaction = highest.Type == "Debt" ? Math.Abs(highest.Amount) : highest.Amount;
+            highestTransactionTitle = highest.Description;
+            highestTransactionDate = highest.Date;
+            highestTransactionType = highest.Type;
+            highestTransactionTags = highest.Tags; // Assign tags
+            highestTransactionNotes = highest.Labels; // Assign notes
 
-            lowestTransaction = allTransactions
-                .Select(t => t.Type == "Debt" ? Math.Abs(t.Amount) : t.Amount) // Convert debt amount to positive
-                .Min();
+            var lowest = allTransactions
+                .OrderBy(t => t.Type == "Debt" ? Math.Abs(t.Amount) : t.Amount)
+                .First();
+            lowestTransaction = lowest.Type == "Debt" ? Math.Abs(lowest.Amount) : lowest.Amount;
+            lowestTransactionTitle = lowest.Description;
+            lowestTransactionDate = lowest.Date;
+            lowestTransactionType = lowest.Type;
+            lowestTransactionTags = lowest.Tags; // Assign tags
+            lowestTransactionNotes = lowest.Labels; // Assign notes
         }
         else
         {
             highestTransaction = 0;
+            highestTransactionTitle = string.Empty;
+            highestTransactionDate = DateTime.MinValue;
+            highestTransactionType = string.Empty;
+            highestTransactionTags = string.Empty;
+            highestTransactionNotes = string.Empty;
+
             lowestTransaction = 0;
+            lowestTransactionTitle = string.Empty;
+            lowestTransactionDate = DateTime.MinValue;
+            lowestTransactionType = string.Empty;
+            lowestTransactionTags = string.Empty;
+            lowestTransactionNotes = string.Empty;
         }
     }
+
+
 
 
 

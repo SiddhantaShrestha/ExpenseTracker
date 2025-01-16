@@ -20,7 +20,6 @@ namespace Coursework
 
             builder.Services.AddSingleton<IUserService, UserService>();
             builder.Services.AddSingleton<AuthenticationStateService>();
-            builder.Services.AddScoped<IDashboardService, DashboardService>();
             builder.Services.AddScoped<ITransactionService, TransactionService>();
             builder.Services.AddScoped<IDebtService, DebtService>();
 

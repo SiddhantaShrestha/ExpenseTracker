@@ -27,7 +27,7 @@
             </div>
 
             <div class="mb-3">
-                <label for="dueDate" class="form-label">Due Date (Optional)</label>
+                <label for="dueDate" class="form-label">Due Date</label>
                 <input id="dueDate" type="date" class="form-control" @bind="newDebt.DueDate" />
             </div>
 
@@ -76,32 +76,15 @@
     {
         try
         {
-            if (string.IsNullOrWhiteSpace(newDebt.Description))
+            // Validate debt using the service method
+            errorMessage = await debtService.ValidateDebtAsync(newDebt, selectedTag);
+
+            if (!string.IsNullOrEmpty(errorMessage))
             {
-                errorMessage = "Description cannot be empty.";
-                return;
+                return; // Stop further execution if validation fails
             }
 
-            if (newDebt.Amount <= 0)
-            {
-                errorMessage = "Amount must be greater than 0.";
-                return;
-            }
-
-            if (selectedTag == "Custom" && string.IsNullOrWhiteSpace(newDebt.Source))
-            {
-                errorMessage = "Please provide a custom source.";
-                return;
-            }
-
-            if (selectedTag != "Custom")
-            {
-                newDebt.Source = selectedTag;
-            }
-
-            newDebt.Status = "Pending";
-            newDebt.AmountPaid = 0;
-
+            // Add debt to the system
             await debtService.AddDebtAsync(newDebt);
             navigationManager.NavigateTo("/transactions");
         }

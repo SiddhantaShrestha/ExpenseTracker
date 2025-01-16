@@ -18,6 +18,7 @@ namespace Coursework.Models
         public DateTime Date { get; set; }
 
         public DateTime? DueDate { get; set; }
+        [Required]
 
         public decimal AmountPaid { get; set; }
 
@@ -33,8 +34,6 @@ namespace Coursework.Models
         public decimal RemainingAmount => Amount - AmountPaid;
 
         public bool IsCleared => RemainingAmount <= 0;
-
-        public decimal PercentagePaid => Amount > 0 ? (AmountPaid / Amount) * 100 : 0;
 
         public void MakePayment(decimal paymentAmount)
         {

@@ -111,6 +111,35 @@ namespace Coursework.Services
             return debts.Sum(d => d.RemainingAmount);
         }
 
+
+        public async Task<string> ValidateDebtAsync(Debt debt, string selectedTag)
+        {
+            if (string.IsNullOrWhiteSpace(debt.Description))
+            {
+                return "Description cannot be empty.";
+            }
+
+            if (debt.Amount <= 0)
+            {
+                return "Amount must be greater than 0.";
+            }
+
+            if (selectedTag == "Custom" && string.IsNullOrWhiteSpace(debt.Source))
+            {
+                return "Please provide a custom source.";
+            }
+
+            if (selectedTag != "Custom")
+            {
+                debt.Source = selectedTag;
+            }
+
+            debt.Status = "Pending";
+            debt.AmountPaid = 0;
+
+            return null; // Validation passed
+        }
+
         // New method to get pending debts
         public async Task<IEnumerable<Debt>> GetPendingDebtsAsync()
         {
